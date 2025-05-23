@@ -1,172 +1,141 @@
 # Globe ISCS Dashboard Web App
 
-A comprehensive, modular web dashboard for Globe ISCS, built with Google Apps Script and Bootstrap 5. The dashboard provides visual analytics and management tools for submarine cable systems, featuring network availability monitoring, outage tracking, and incident ticket management.
+## Overview
 
----
+The Globe International Submarine Cable System (ISCS) Dashboard is a comprehensive monitoring and management tool designed to track submarine cable system availability, outages, and incidents. Built as a Google Apps Script web application, it provides real-time data visualization, incident tracking, and historical analysis tools to help maintain optimal network operations.
 
-## Table of Contents
+**Version:** scstov-dash_v1.a
 
-1. [Project Overview](#project-overview)
-2. [Architecture](#architecture)
-3. [Core Features](#core-features)
-4. [Technical Stack](#technical-stack)
-5. [Network Availability Calculation](#network-availability-calculation)
-6. [File Structure](#file-structure)
-7. [Setup and Configuration](#setup-and-configuration)
+## Features
 
----
+### 1. Dashboard Overview
 
-## Project Overview
+- **Ticket Management**: Create, view, edit and delete incident tickets
+- **Network Availability Monitoring**: Monthly uptime visualization with color-coded indicators
+- **Outage Summary Analysis**: Cross-tabulated view of outages by reason and cable system
+- **Universal Search**: Search capabilities across all data sections
+- **Responsive Design**: Bootstrap 5-based responsive interface
 
-The Globe ISCS Dashboard is a web application designed to provide a comprehensive view of submarine cable system availability and incident management. It features a responsive interface with dark mode support, interactive data tables, and a modular design for easy expansion. The dashboard connects to Google Sheets as its data source, enabling real-time updates and collaborative data management.
+### 2. Technical Capabilities
 
----
+- **Google Sheets Integration**: Dynamic data storage and retrieval
+- **Modular Architecture**: Separation of concerns with modularized frontend/backend
+- **Dark Mode Support**: Complete dark mode implementation with persistent settings
+- **Real-time Updates**: Universal refresh mechanism across all dashboard components
+- **Advanced Selection**: Multi-select capabilities with keyboard shortcuts
+- **Pagination**: Advanced pagination with customizable page sizes
 
 ## Architecture
 
-The project follows a tiered architecture for clarity and maintainability:
+### Frontend Components
 
-- **Tier 0**: Core components (main HTML, sidebar, layout, global styles)
-- **Tier 1**: Dashboard components (outage summary, network availability visualizations)
-- **Tier 2**: Detailed views and management tools (ticket details, CRUD operations)
-- **Frontend JS**: Modularized JavaScript files for each component
-- **Backend JS**: Google Apps Script backend with tiered functionality
+- **HTML Templates**: Modularized HTML files for each section
+- **JavaScript Modules**: Separated into functional components:
+  - `frontend-utils-js.html`: Core utility functions
+  - `frontend-sidebar-js.html`: Navigation and section management
+  - `frontend-ticketlist-js.html`: Ticket listing and pagination
+  - `frontend-ticketmodal-js.html`: Modal dialog for ticket details
+  - `frontend-selection-js.html`: Selection logic for tickets and entries
+  - `frontend-tickets-crud-js.html`: CRUD operations for tickets
+  - `frontend-outage-summary-js.html`: Outage summary table logic
+  - `frontend-network-availability-js.html`: Network availability visualization
 
-This structure separates concerns and allows for isolated development of features.
+### Backend Structure
 
----
+- **Code.js**: Main entry point and request routing
+- **backend.js**: Three-tiered structure:
+  1. **Core and Utilities**: Sheet access, configuration management
+  2. **Tickets and Tables**: Data retrieval and manipulation
+  3. **CRUD Operations**: Create, read, update, delete functionality
 
-## Core Features
+### Data Storage
 
-- **Network Availability Visualization**: Color-coded monthly availability metrics by cable system and segment
-- **Outage Summary**: Aggregated view of outages by reason and cable system
-- **Ticket Management**: Create, read, update, and delete incident tickets
-- **Dark Mode**: Full dark mode support with preserved styling and readability
-- **Search & Filtering**: Search functionality across tickets and outage data
-- **Responsive Design**: Mobile-friendly interface with Bootstrap 5
-- **Google Sheets Integration**: Direct connection to Google Sheets for data management
+- Google Sheets integration with configurable sheet ID and name
+- Cached data retrieval for performance optimization
+- Script Properties for persistent configuration
 
----
+## Setup and Installation
 
-## Technical Stack
+### Prerequisites
 
-- **Frontend**: HTML5, CSS3, JavaScript, Bootstrap 5
-- **Backend**: Google Apps Script (GAS)
-- **Data Storage**: Google Sheets
-- **Libraries**: GSAP for animations, Chart.js for visualizations
-- **Icons**: Bootstrap Icons
-- **Fonts**: Inter (Google Fonts)
+- Google account with access to Google Apps Script
+- Google Sheets for data storage
+- ClaspJS (optional for local development)
 
----
+### Deployment Steps
 
-## Network Availability Calculation
+1. **Clone Repository**:
 
-The system calculates network availability percentages using a sophisticated algorithm that properly handles overlapping downtime incidents.
+   ```
+   git clone https://github.com/your-repo/globe-iscs.git
+   cd globe-iscs
+   ```
 
-### Mathematical Formula
+2. **Google Apps Script Deployment**:
 
-Network Availability is calculated as:
+   - Create new Google Apps Script project
+   - Copy files into project or use ClaspJS to push
+   - Deploy as web app with appropriate permissions
 
-```
-Network Availability (%) = ((Total Time - Downtime) / Total Time) × 100
-```
+3. **Configuration**:
 
-Where:
+   - Create a Google Sheet with the required structure (see below)
+   - Configure the app by visiting the Settings page and entering your Sheet ID
 
-- **Total Time** = Total seconds in the month (days in month × 24 hours × 60 minutes × 60 seconds)
-- **Downtime** = Total seconds the system was down, with overlapping incidents merged
+### Required Sheet Structure
 
-### Overlapping Downtime Handling
+The primary data sheet ("MAJOR INCIDENTS_UPDATED" by default) should include:
 
-When multiple incidents affect the same time period, the system uses an interval merging algorithm:
+- Ticket ID (column A)
+- Start Date/Time (column B)
+- End Date/Time (column C)
+- Duration (column D)
+- Cable System (with data validation)
+- Affected Segment (with data validation)
+- RFO (Reason For Outage)
+- Month and Year columns
+- Additional detail columns as needed
 
-1. Sort all downtime intervals by start time
-2. Merge overlapping intervals into continuous periods
-3. Calculate total downtime based on merged intervals
+## Development Guide
 
-### Example
+### Local Development
 
-For January 2025 (31 days), if a cable system has these incidents:
+1. Install ClaspJS: `npm install -g @google/clasp`
+2. Login: `clasp login`
+3. Clone existing project: `clasp clone <scriptId>`
+4. Make changes locally
+5. Push changes: `clasp push`
 
-- Incident 1: Down from Jan 10, 1:00 PM to Jan 10, 5:00 PM (4 hours)
-- Incident 2: Down from Jan 10, 3:00 PM to Jan 10, 7:00 PM (4 hours)
+### Code Structure
 
-**Traditional method:** 4 hours + 4 hours = 8 hours of downtime
-**Correct merged method:** Jan 10, 1:00 PM to Jan 10, 7:00 PM = 6 hours of downtime
+- **HTML Files**: Organized by feature and functionality
+- **JavaScript Files**: Modularized for frontend and backend logic
+- **CSS Files**: Global and component-specific styles
+- **Google Apps Script Files**: Server-side logic and configuration
 
-**Total time in January:** 31 days × 24 hours × 60 minutes × 60 seconds = 2,678,400 seconds
-**Downtime after merging:** 6 hours × 60 minutes × 60 seconds = 21,600 seconds
+### Best Practices
 
-**Network Availability:** ((2,678,400 - 21,600) / 2,678,400) × 100 = 99.19%
+- Keep concerns separated: HTML for structure, CSS for styling, JS for behavior
+- Comment code for clarity, especially in complex functions
+- Test changes in a development environment before deploying
+- Use version control (e.g., Git) for tracking changes and collaboration
 
-This approach ensures accurate reporting even when multiple outages overlap in the same time period.
+## Troubleshooting
 
----
+- **Common Issues**:
+  - Deployment errors: Check Google Apps Script permissions and settings
+  - Data not updating: Ensure Google Sheets are correctly linked and accessible
+  - Script timeouts: Optimize code for performance, reduce data volume if possible
 
-## File Structure
+- **Debugging Tips**:
+  - Use `Logger.log()` in Google Apps Script to output debug information
+  - Check browser console for frontend JavaScript errors
+  - Validate data formats and types, especially when interacting with Google Sheets
 
-### Core Files (Tier 0)
+## Support
 
-- **main.html**: Entry point and container for all components
-- **Code.js**: Google Apps Script entry point and routing
-- **backend.js**: Core backend functionality in tiered structure
-- **sidebar.html**: Navigation sidebar component
-- **appstyles.html**: Global styles and theme definition
-- **dashboard.html**: Dashboard container that includes Tier 1 components
-- **settings.html**: Settings page for Google Sheets connection
-- **help.html**: Help documentation and user guide
-
-### Dashboard Components (Tier 1)
-
-- **t1-dashboard.html**: Main dashboard view with cards and data visualization
-- **frontend-outage-summary-js.html**: Outage summary table logic
-- **frontend-network-availability-js.html**: Network availability visualization
-
-### Management Components (Tier 2)
-
-- **t2-tickets.html**: Ticket management modals and UI
-- **frontend-ticketlist-js.html**: Ticket listing functionality
-- **frontend-ticketmodal-js.html**: Ticket detail modal interactions
-- **frontend-tickets-crud-js.html**: Create, read, update, delete operations
-
-### Utility Components
-
-- **frontend-dark-mode-js.html**: Dark mode toggle functionality
-- **frontend-utils-js.html**: Shared utility functions
-- **frontend-selection-js.html**: Selection logic for tables and lists
-- **frontend-open-in-sheets-js.html**: Google Sheets linking
-- **frontend-spreadsheet-name-js.html**: Spreadsheet name display
-- **frontend-settings-js.html**: Settings page functionality
-
-### Configuration
-
-- **appsscript.json**: Google Apps Script project configuration
-- **.clasp.json**: CLASP deployment configuration
+For issues and feature requests, please use the GitHub repository's issue tracker. For questions and discussions, use the repository's discussions section or contact the maintainer.
 
 ---
 
-## Setup and Configuration
-
-1. **Prerequisites**:
-
-   - Google account with access to Google Apps Script and Google Sheets
-   - Basic understanding of HTML, CSS, JavaScript, and Google Apps Script
-
-2. **Deployment**:
-
-   - Clone repository
-   - Use CLASP to push code to Google Apps Script
-   - Deploy as web app
-   - Configure spreadsheet connection in Settings
-
-3. **Data Structure**:
-
-   - Create required sheets in Google Sheets
-   - Configure validation rules for Cable System and Affected Segment columns
-   - Ensure ticket data follows expected format
-
-4. **Usage**:
-
-   - Access deployed web app URL
-   - Configure data source on first run
-   - Use dashboard to visualize and manage submarine cable data
+**Disclaimer**: This project is not affiliated with or endorsed by Globe Telecom. It is an independent initiative for monitoring and managing submarine cable systems. Use at your own risk.
