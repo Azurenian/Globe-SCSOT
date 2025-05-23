@@ -498,13 +498,34 @@
   .help-card {
     background-color: rgba(248, 249, 250, 0.9) !important;
     transition: background-color 0.3s ease;
-  }
-
-  /* Fix for help section cards in dark mode */
+  }  /* Fix for help section cards in dark mode */
   body.dark-mode .help-card {
-    background-color: rgba(10, 30, 48, 0.8) !important;
+    background-color: rgba(5, 15, 30, 0.8) !important; /* Darker blue shade for better contrast with accordion */
     border-color: #172a45;
     color: #e1e7ef;
+    border-left: 3px solid #26348d; /* Add a blue border on the left for emphasis */
+  }
+  
+  /* Style for help section accordion in dark mode */
+  body.dark-mode .accordion-item {
+    background-color: #0a1e30 !important; /* Dark blue shade */
+    border-color: #172a45;
+    color: #e1e7ef;
+  }
+  
+  body.dark-mode .accordion-button {
+    background-color: #0d2444 !important; /* Slightly lighter dark blue for button */
+    color: #e1e7ef;
+    border-color: #172a45;
+  }
+  
+  body.dark-mode .accordion-button:not(.collapsed) {
+    background-color: #123456 !important; /* Even slightly lighter dark blue for expanded button */
+    color: #ffffff;
+  }
+  
+  body.dark-mode .accordion-button::after {
+    filter: brightness(2); /* Make the dropdown arrow lighter */
   }
 
   /* Transitions for smoother dark/light mode switching */
