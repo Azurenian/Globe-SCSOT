@@ -1,0 +1,25 @@
+<!-- Open in Sheets Button Logic -->
+<script>
+  (function () {
+    function setOpenInSheetsButton() {
+      var btn = document.getElementById("open-in-sheets-btn");
+      if (!btn) return;
+      // Fetch Sheet ID from backend
+      google.script.run
+        .withSuccessHandler(function (sheetId) {
+          if (sheetId) {
+            btn.disabled = false;
+            btn.onclick = function () {
+              var url = "https://docs.google.com/spreadsheets/d/" + sheetId;
+              window.open(url, "_blank");
+            };
+          } else {
+            btn.disabled = true;
+            btn.title = "No Sheet ID set.";
+          }
+        })
+        .getCurrentSheetId();
+    }
+    document.addEventListener("DOMContentLoaded", setOpenInSheetsButton);
+  })();
+</script>

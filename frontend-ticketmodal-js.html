@@ -1,0 +1,313 @@
+<!-- Ticket Details Modal Logic (separate from T1 Dashboard logic) -->
+<script>
+  (function () {
+    window.modalPageSize = 10;
+    window.modalCurrentPage = 1;
+    window.modalCurrentSearch = "";
+    window.modalTotalRows = 0;
+    window.modalTicketId = null;
+    let modalIsLoading = false;
+    let modalRowsOnPage = 0;
+
+    // Utility: Show/Hide error
+    function showModalError(msg) {
+      const err = document.getElementById("ticket-modal-error");
+      if (err) {
+        err.textContent = msg;
+        err.classList.remove("d-none");
+      }
+    }
+    function hideModalError() {
+      const err = document.getElementById("ticket-modal-error");
+      if (err) err.classList.add("d-none");
+    }
+
+    // Utility: Show/Hide modal loading overlay
+    function setModalLoading(loading) {
+      const overlay = document.getElementById("ticket-modal-loading-overlay");
+      if (overlay) {
+        overlay.classList.toggle("d-none", !loading);
+      }
+      modalIsLoading = loading;
+    }
+
+    window.fetchTicketDetails = function (ticketId, page, pageSize, search) {
+      setModalLoading(true);
+      hideModalError();
+      document.getElementById("ticket-modal-table-body").innerHTML = "";
+      google.script.run
+        .withSuccessHandler(function (result) {
+          renderTicketModalTable(result, page, pageSize);
+          setModalLoading(false);
+        })
+        .withFailureHandler(function (err) {
+          showModalError("Failed to load ticket details.");
+          setModalLoading(false);
+        })
+        .getTicketDetailsById(ticketId, page, pageSize, search);
+    };
+
+    // Render table, pagination, error
+    function renderTicketModalTable(result, page, pageSize) {
+      const header = document.getElementById("ticket-modal-table-header");
+      const body = document.getElementById("ticket-modal-table-body");
+      const rangeText = document.getElementById("ticket-modal-list-range");
+      if (!result || result.error) {
+        showModalError(
+          result && result.error ? result.error : "No data found."
+        );
+        header.innerHTML = "";
+        body.innerHTML = "";
+        if (rangeText) rangeText.textContent = "";
+        modalRowsOnPage = 0;
+        renderModalPagination(page, pageSize, 0);
+        return;
+      }
+      // Render header
+      header.innerHTML = "";
+      result.columns.forEach(function (col) {
+        const th = document.createElement("th");
+        th.textContent = col;
+        header.appendChild(th);
+      });
+      // Render body
+      body.innerHTML = "";
+      if (!result.rows || result.rows.length === 0) {
+        body.innerHTML =
+          '<tr><td colspan="100%" class="text-center">No data found.</td></tr>';
+        modalRowsOnPage = 0;
+      } else {
+        result.rows.forEach(function (row) {
+          const tr = document.createElement("tr");
+          row.forEach(function (cell) {
+            const td = document.createElement("td");
+            td.textContent = cell;
+            tr.appendChild(td);
+          });
+          body.appendChild(tr);
+        });
+        modalRowsOnPage = result.rows.length;
+      }
+      modalTotalRows = result.total;
+      renderModalPagination(page, pageSize, modalTotalRows);
+      renderModalRangeText(page, pageSize, modalTotalRows);
+    }
+
+    function renderModalRangeText(page, pageSize, total) {
+      const rangeText = document.getElementById("ticket-modal-list-range");
+      if (!rangeText) return;
+      if (total === 0) {
+        rangeText.textContent = "";
+        return;
+      }
+      const start = (page - 1) * pageSize + 1;
+      const end = Math.min(start + modalRowsOnPage - 1, total);
+      rangeText.textContent = `Showing ${start}-${end} of ${total} items`;
+    }
+
+    function renderModalPagination(page, pageSize, total) {
+      const pagination = document.getElementById("ticket-modal-pagination");
+      pagination.innerHTML = "";
+      const totalPages = Math.ceil(total / pageSize);
+      if (totalPages <= 1) return;
+      // Previous
+      const prevLi = document.createElement("li");
+      prevLi.className = "page-item" + (page === 1 ? " disabled" : "");
+      const prevA = document.createElement("a");
+      prevA.className = "page-link";
+      prevA.href = "#";
+      prevA.innerHTML = '<i class="bi bi-chevron-left"></i>'; // Changed from "&laquo;" to single chevron icon
+      prevA.onclick = function (e) {
+        e.preventDefault();
+        if (modalIsLoading || page === 1) return;
+        modalCurrentPage = page - 1;
+        fetchTicketDetails(
+          modalTicketId,
+          modalCurrentPage,
+          modalPageSize,
+          modalCurrentSearch
+        );
+      };
+      prevLi.appendChild(prevA);
+      pagination.appendChild(prevLi);
+      // Page numbers
+      let startPage = Math.max(1, page - 2);
+      let endPage = Math.min(totalPages, page + 2);
+      if (page <= 3) endPage = Math.min(5, totalPages);
+      if (page >= totalPages - 2) startPage = Math.max(1, totalPages - 4);
+      if (startPage > 1) {
+        addPageBtn(1);
+        if (startPage > 2) addEllipsis();
+      }
+      for (let i = startPage; i <= endPage; i++) {
+        addPageBtn(i);
+      }
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) addEllipsis();
+        addPageBtn(totalPages);
+      }
+      // Next
+      const nextLi = document.createElement("li");
+      nextLi.className = "page-item" + (page === totalPages ? " disabled" : "");
+      const nextA = document.createElement("a");
+      nextA.className = "page-link";
+      nextA.href = "#";
+      nextA.innerHTML = '<i class="bi bi-chevron-right"></i>'; // Changed from "&raquo;" to single chevron icon
+      nextA.onclick = function (e) {
+        e.preventDefault();
+        if (modalIsLoading || page === totalPages) return;
+        modalCurrentPage = page + 1;
+        fetchTicketDetails(
+          modalTicketId,
+          modalCurrentPage,
+          modalPageSize,
+          modalCurrentSearch
+        );
+      };
+      nextLi.appendChild(nextA);
+      pagination.appendChild(nextLi);
+
+      function addPageBtn(i) {
+        const li = document.createElement("li");
+        li.className = "page-item" + (i === page ? " active" : "");
+        const a = document.createElement("a");
+        a.className = "page-link";
+        a.href = "#";
+        a.textContent = i;
+        a.onclick = function (e) {
+          e.preventDefault();
+          if (modalIsLoading || modalCurrentPage === i) return;
+          modalCurrentPage = i;
+          fetchTicketDetails(
+            modalTicketId,
+            modalCurrentPage,
+            modalPageSize,
+            modalCurrentSearch
+          );
+        };
+        li.appendChild(a);
+        pagination.appendChild(li);
+      }
+      function addEllipsis() {
+        const li = document.createElement("li");
+        li.className = "page-item disabled";
+        const span = document.createElement("span");
+        span.className = "page-link";
+        span.textContent = "...";
+        li.appendChild(span);
+        pagination.appendChild(li);
+      }
+    }
+
+    // Modal search, reset, page size, page jump
+    document.addEventListener("DOMContentLoaded", function () {
+      // Hover effect for ticket items
+      const ticketList = document.getElementById("ticket-list");
+      if (ticketList) {
+        ticketList.addEventListener("mouseover", function (e) {
+          const li = e.target.closest("li.list-group-item");
+          if (li) li.classList.add("ticket-hover");
+        });
+        ticketList.addEventListener("mouseout", function (e) {
+          const li = e.target.closest("li.list-group-item");
+          if (li) li.classList.remove("ticket-hover");
+        });
+        // Only open modal on double click
+        ticketList.addEventListener("dblclick", function (e) {
+          const li = e.target.closest("li.list-group-item");
+          if (li && li.textContent) {
+            modalTicketId = li.textContent.trim();
+            modalCurrentPage = 1;
+            modalCurrentSearch = "";
+            const pageSizeSelect = document.getElementById(
+              "ticket-modal-page-size"
+            );
+            modalPageSize = pageSizeSelect
+              ? parseInt(pageSizeSelect.value, 10)
+              : 5;
+            document.getElementById(
+              "ticketDetailsModalLabel"
+            ).textContent = `Ticket Details: ${modalTicketId}`;
+            document.getElementById("ticket-modal-search").value = "";
+            const modalElem = document.getElementById("ticketDetailsModal");
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
+            modal.show();
+            fetchTicketDetails(
+              modalTicketId,
+              modalCurrentPage,
+              modalPageSize,
+              modalCurrentSearch
+            );
+          }
+        });
+      }
+      // Modal search
+      document
+        .getElementById("ticket-modal-search-btn")
+        .addEventListener("click", function () {
+          if (modalIsLoading) return;
+          modalCurrentSearch = document.getElementById(
+            "ticket-modal-search"
+          ).value;
+          modalCurrentPage = 1;
+          fetchTicketDetails(
+            modalTicketId,
+            modalCurrentPage,
+            modalPageSize,
+            modalCurrentSearch
+          );
+        });
+      // Modal reset
+      document
+        .getElementById("ticket-modal-reset-btn")
+        .addEventListener("click", function () {
+          if (modalIsLoading) return;
+          document.getElementById("ticket-modal-search").value = "";
+          modalCurrentSearch = "";
+          modalCurrentPage = 1;
+          fetchTicketDetails(
+            modalTicketId,
+            modalCurrentPage,
+            modalPageSize,
+            modalCurrentSearch
+          );
+        });
+      // Modal page jump
+      document
+        .getElementById("ticket-modal-page-jump-form")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          if (modalIsLoading) return;
+          let page = parseInt(
+            document.getElementById("ticket-modal-page-jump").value,
+            10
+          );
+          const totalPages = Math.ceil(modalTotalRows / modalPageSize);
+          if (isNaN(page) || page < 1) page = 1;
+          if (page > totalPages) page = totalPages;
+          modalCurrentPage = page;
+          fetchTicketDetails(
+            modalTicketId,
+            modalCurrentPage,
+            modalPageSize,
+            modalCurrentSearch
+          );
+        });
+      // Modal page size (dropdown)
+      document
+        .getElementById("ticket-modal-page-size")
+        .addEventListener("change", function () {
+          if (modalIsLoading) return;
+          modalPageSize = parseInt(this.value, 10);
+          modalCurrentPage = 1;
+          fetchTicketDetails(
+            modalTicketId,
+            modalCurrentPage,
+            modalPageSize,
+            modalCurrentSearch
+          );
+        });
+      // Sorting controls placeholder (future)
+    });
+  })();
+</script>

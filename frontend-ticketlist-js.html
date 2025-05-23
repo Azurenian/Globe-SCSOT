@@ -1,0 +1,180 @@
+<!-- List Pagination & Search (T1 Dashboard) -->
+<script>
+  // Ticket List Pagination & Search (T1 Dashboard)
+  (function () {
+    window.PAGE_SIZE = 5;
+    window.currentPage = 1;
+    window.currentSearch = "";
+    let totalTickets = 0;
+    let isLoading = false;
+    let ticketsOnPage = 0;
+
+    function setLoading(loading) {
+      const overlay = document.getElementById("ticket-loading-overlay");
+      isLoading = loading;
+      if (overlay) {
+        overlay.classList.toggle("d-none", !loading);
+      }
+    }
+
+    window.fetchTickets = function (search, page, pageSize) {
+      setLoading(true);
+      // Clear selections before fetching new page data
+      if (typeof window.clearTicketSelections === "function") {
+        window.clearTicketSelections();
+      }
+      google.script.run
+        .withSuccessHandler(function (result) {
+          renderTickets(result, page, pageSize);
+          setLoading(false);
+        })
+        .withFailureHandler(function () {
+          setLoading(false);
+        })
+        .getTicketListPaged(search, page, pageSize);
+    };
+
+    function renderTickets(result, page, pageSize) {
+      const list = document.getElementById("ticket-list");
+      const pagination = document.getElementById("ticket-pagination");
+      const rangeText = document.getElementById("ticket-list-range");
+      list.innerHTML = "";
+      // Sheet ID not set indicator
+      if (result && result.sheetIdError) {
+        const alert = document.createElement("div");
+        alert.className = "alert alert-warning my-3";
+        alert.innerHTML =
+          '<i class="bi bi-exclamation-triangle me-2"></i>Data source not set. Please go to <b>Settings</b> and enter a valid Google Sheet ID.';
+        list.appendChild(alert);
+        if (pagination) pagination.innerHTML = "";
+        if (rangeText) rangeText.textContent = "";
+        return;
+      }
+      if (!result || !result.tickets || result.tickets.length === 0) {
+        list.innerHTML = '<li class="list-group-item">No tickets found.</li>';
+        pagination.innerHTML = "";
+        if (rangeText) rangeText.textContent = "";
+        ticketsOnPage = 0;
+        return;
+      }
+      result.tickets.forEach((ticket) => {
+        const li = document.createElement("li");
+        li.className = "list-group-item";
+        li.textContent = ticket;
+        list.appendChild(li);
+      });
+      totalTickets = result.total;
+      ticketsOnPage = result.tickets.length;
+      renderPagination(page, pageSize);
+      renderRangeText(page, pageSize);
+    }
+
+    function renderRangeText(page, pageSize) {
+      const rangeText = document.getElementById("ticket-list-range");
+      if (!rangeText) return;
+      if (totalTickets === 0) {
+        rangeText.textContent = "";
+        return;
+      }
+      const start = (page - 1) * pageSize + 1;
+      const end = Math.min(start + ticketsOnPage - 1, totalTickets);
+      rangeText.textContent = `Showing ${start}-${end} of ${totalTickets} items`;
+    }
+
+    function renderPagination(page, pageSize) {
+      const pagination = document.getElementById("ticket-pagination");
+      pagination.innerHTML = "";
+      const totalPages = Math.ceil(totalTickets / pageSize);
+      if (totalPages <= 1) return;
+      // Previous button
+      const prevDisabled = currentPage === 1 ? " disabled" : "";
+      pagination.innerHTML += `<li class="page-item${prevDisabled}"><a class="page-link" href="#" data-page="${
+        currentPage - 1
+      }"><i class="bi bi-chevron-left"></i></a></li>`;
+      // Page numbers with ellipsis
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, currentPage + 2);
+      if (start > 1) {
+        pagination.innerHTML += `<li class="page-item"><a class="page-link" href="#" data-page="1">1</a></li>`;
+        if (start > 2)
+          pagination.innerHTML +=
+            '<li class="page-item disabled"><span class="page-link">…</span></li>';
+      }
+      for (let i = start; i <= end; i++) {
+        pagination.innerHTML += `<li class="page-item${
+          i === currentPage ? " active" : ""
+        }"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`;
+      }
+      if (end < totalPages) {
+        if (end < totalPages - 1)
+          pagination.innerHTML +=
+            '<li class="page-item disabled"><span class="page-link">…</span></li>';
+        pagination.innerHTML += `<li class="page-item"><a class="page-link" href="#" data-page="${totalPages}">${totalPages}</a></li>`;
+      }
+      // Next button
+      const nextDisabled = currentPage === totalPages ? " disabled" : "";
+      pagination.innerHTML += `<li class="page-item${nextDisabled}"><a class="page-link" href="#" data-page="${
+        currentPage + 1
+      }"><i class="bi bi-chevron-right"></i></a></li>`;
+
+      // Add event listeners for pagination links
+      pagination.querySelectorAll("a[data-page]").forEach((link) => {
+        link.addEventListener("click", function (e) {
+          e.preventDefault();
+          const pageNum = parseInt(this.getAttribute("data-page"), 10);
+          if (!isNaN(pageNum) && pageNum !== currentPage) {
+            currentPage = pageNum;
+            fetchTickets(currentSearch, currentPage, PAGE_SIZE);
+          }
+        });
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const searchInput = document.getElementById("ticket-search");
+      const searchBtn = document.getElementById("ticket-search-btn");
+      const resetBtn = document.getElementById("ticket-reset-btn");
+      const pageSizeSelect = document.getElementById("ticket-page-size");
+      const pageJumpForm = document.getElementById("ticket-page-jump-form");
+      const pageJumpInput = document.getElementById("ticket-page-jump");
+
+      if (searchBtn && searchInput) {
+        searchBtn.addEventListener("click", function () {
+          if (isLoading) return;
+          currentSearch = searchInput.value;
+          currentPage = 1;
+          fetchTickets(currentSearch, currentPage, PAGE_SIZE);
+        });
+      }
+      if (resetBtn && searchInput) {
+        resetBtn.addEventListener("click", function () {
+          if (isLoading) return;
+          searchInput.value = "";
+          currentSearch = "";
+          currentPage = 1;
+          fetchTickets(currentSearch, currentPage, PAGE_SIZE);
+        });
+      }
+      if (pageSizeSelect) {
+        pageSizeSelect.addEventListener("change", function () {
+          PAGE_SIZE = parseInt(this.value, 10);
+          currentPage = 1;
+          fetchTickets(currentSearch, currentPage, PAGE_SIZE);
+        });
+      }
+      if (pageJumpForm && pageJumpInput) {
+        pageJumpForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          if (isLoading) return;
+          let page = parseInt(pageJumpInput.value, 10);
+          const totalPages = Math.ceil(totalTickets / PAGE_SIZE);
+          if (isNaN(page) || page < 1) page = 1;
+          if (page > totalPages) page = totalPages;
+          currentPage = page;
+          fetchTickets(currentSearch, currentPage, PAGE_SIZE);
+        });
+      }
+      fetchTickets(currentSearch, currentPage, PAGE_SIZE);
+    });
+  })();
+</script>

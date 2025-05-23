@@ -1,0 +1,343 @@
+<!--
+  t1-dashboard.html
+  Purpose: Sample dashboard component to verify modular includes.
+-->
+
+<!-- Use Bootstrap Cards without shadow and with square edges for all main containers -->
+<div class="container mb-3 mt-5">
+  <div class="row mb-2">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center">
+        <span class="small me-2">Active Spreadsheet:</span>
+        <span
+          id="spreadsheet-name-display"
+          class="badge bg-success fw-light text-truncate align-middle"
+          style="
+            max-width: 200px;
+            font-size: 0.85rem;
+            line-height: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0.35em 0.6em;
+          "
+        ></span>
+      </div>
+      <div class="d-flex align-items-center">
+        <button
+          type="button"
+          class="btn btn-outline-primary btn-sm me-2 d-flex align-items-center"
+          id="open-in-sheets-btn"
+          title="Open current sheet in Google Sheets"
+          disabled
+        >
+          <img
+            src="https://www.gstatic.com/images/branding/product/1x/sheets_48dp.png"
+            alt="Google Sheets"
+            style="height: 20px; width: 20px; margin-right: 6px"
+          />
+          Open in Sheets
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          id="refresh-all-data-btn"
+        >
+          <i class="bi bi-arrow-clockwise"></i> Refresh All Data
+        </button>
+      </div>
+    </div>
+  </div>
+  <div class="row mb-2">
+    <div class="col-md-6">
+      <div class="card border-0 rounded-0 h-100">
+        <div class="card-body">
+          <h6 class="card-title mb-2">Outage Summary</h6>
+          <div id="outage-summary-table-container">
+            <div
+              class="d-flex mb-2 gap-2 align-items-center justify-content-between"
+              id="outage-summary-toolbar"
+            >
+              <div class="d-flex gap-2 align-items-center">
+                <input
+                  type="text"
+                  id="outage-summary-search"
+                  class="form-control form-control-sm"
+                  style="max-width: 180px"
+                  placeholder="Search outages..."
+                />
+                <button
+                  type="button"
+                  id="outage-summary-search-btn"
+                  class="btn btn-outline-secondary btn-sm ms-1"
+                  title="Search"
+                >
+                  <i class="bi bi-search"></i>
+                </button>
+                <button
+                  type="button"
+                  id="outage-summary-reset-btn"
+                  class="btn btn-outline-secondary btn-sm ms-1"
+                  title="Reset"
+                >
+                  <i class="bi bi-arrow-clockwise"></i>
+                </button>
+              </div>
+              <div
+                class="d-flex align-items-center ms-auto"
+                style="gap: 0.5rem"
+              >
+                <label for="outage-summary-page-size" class="mb-0 small"
+                  >Items per page:</label
+                >
+                <select
+                  id="outage-summary-page-size"
+                  class="form-select form-select-sm"
+                  style="width: auto; min-width: 60px; display: inline-block"
+                >
+                  <option value="5">5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                </select>
+              </div>
+            </div>
+            <div id="outage-summary-table-content"></div>
+            <nav class="d-flex align-items-center justify-content-between mt-2">
+              <div class="d-flex align-items-center gap-2">
+                <form
+                  id="outage-summary-page-jump-form"
+                  class="d-flex align-items-center"
+                  style="gap: 0.25rem"
+                >
+                  <input
+                    type="number"
+                    min="1"
+                    id="outage-summary-page-jump"
+                    class="form-control form-control-sm"
+                    style="width: 80px"
+                    placeholder="Page"
+                  />
+                  <button
+                    type="submit"
+                    class="btn btn-outline-secondary btn-sm"
+                  >
+                    Go
+                  </button>
+                </form>
+                <ul
+                  id="outage-summary-pagination"
+                  class="pagination pagination-sm mb-0 flex-wrap"
+                ></ul>
+              </div>
+              <span
+                id="outage-summary-list-range"
+                class="text-secondary small ms-auto"
+              ></span>
+            </nav>
+          </div>
+          <?!= include('frontend-outage-summary-js'); ?>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div
+        class="card border-0 rounded-0 h-100 position-relative"
+        id="major-incidents-container"
+      >
+        <div class="card-body">
+          <!-- Content for Major Incidents Summary -->
+          <div
+            id="ticket-loading-overlay"
+            class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex justify-content-center align-items-center d-none"
+            style="z-index: 10"
+          >
+            <div
+              class="spinner-border text-white"
+              role="status"
+              aria-label="Loading"
+            ></div>
+          </div>
+
+          <h6 class="card-title mb-2">Major Incidents</h6>
+          <div
+            class="d-flex mb-2 gap-2 align-items-center justify-content-between"
+            id="ticket-list-toolbar"
+          >
+            <div class="d-flex gap-2 align-items-center">
+              <button
+                type="button"
+                class="btn btn-success btn-sm"
+                title="Add Ticket"
+              >
+                <i class="bi bi-plus-lg"></i>
+              </button>
+              <button
+                type="button"
+                class="btn btn-danger btn-sm"
+                title="Delete Ticket"
+              >
+                <i class="bi bi-trash"></i>
+              </button>
+              <input
+                type="text"
+                id="ticket-search"
+                class="form-control form-control-sm ms-2"
+                style="max-width: 180px"
+                placeholder="Search tickets..."
+              />
+              <button
+                type="button"
+                id="ticket-search-btn"
+                class="btn btn-outline-secondary btn-sm ms-1"
+                title="Search"
+              >
+                <i class="bi bi-search"></i>
+              </button>
+              <button
+                type="button"
+                id="ticket-reset-btn"
+                class="btn btn-outline-secondary btn-sm ms-1"
+                title="Reset"
+              >
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </div>
+            <div class="d-flex align-items-center ms-auto" style="gap: 0.5rem">
+              <label for="ticket-page-size" class="mb-0 small"
+                >Items per page:</label
+              >
+              <select
+                id="ticket-page-size"
+                class="form-select form-select-sm"
+                style="width: auto; min-width: 60px; display: inline-block"
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+              </select>
+            </div>
+          </div>
+          <ul id="ticket-list" class="list-group mb-2"></ul>
+          <nav class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <form
+                id="ticket-page-jump-form"
+                class="d-flex align-items-center"
+                style="gap: 0.25rem"
+              >
+                <input
+                  type="number"
+                  min="1"
+                  id="ticket-page-jump"
+                  class="form-control form-control-sm"
+                  style="width: 80px"
+                  placeholder="Page"
+                />
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                  Go
+                </button>
+              </form>
+              <ul
+                id="ticket-pagination"
+                class="pagination pagination-sm mb-0 flex-wrap"
+              ></ul>
+            </div>
+            <span
+              id="ticket-list-range"
+              class="text-secondary small ms-auto"
+            ></span>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-0 rounded-0 mt-3">
+        <div class="card-body">
+          <h6 class="card-title mb-2">Network Availability</h6>
+          <div id="network-availability-container">
+            <div
+              class="d-flex mb-2 gap-2 align-items-center justify-content-between"
+              id="network-availability-toolbar"
+            >
+              <div class="d-flex gap-2 align-items-center">
+                <label
+                  for="network-availability-cable-system"
+                  class="mb-0 small"
+                  >Cable System:</label
+                >
+                <select
+                  id="network-availability-cable-system"
+                  class="form-select form-select-sm"
+                  style="width: auto; min-width: 120px; display: inline-block"
+                ></select>
+                <label for="network-availability-segment" class="mb-0 small"
+                  >Segment:</label
+                >
+                <select
+                  id="network-availability-segment"
+                  class="form-select form-select-sm"
+                  style="width: auto; min-width: 120px; display: inline-block"
+                ></select>
+              </div>
+              <div
+                class="d-flex align-items-center ms-auto"
+                style="gap: 0.5rem"
+              >
+                <label for="network-availability-page-size" class="mb-0 small"
+                  >Years per page:</label
+                >
+                <select
+                  id="network-availability-page-size"
+                  class="form-select form-select-sm"
+                  style="width: auto; min-width: 70px; display: inline-block"
+                >
+                  <option value="3">3</option>
+                  <option value="5" selected>5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                </select>
+              </div>
+            </div>
+            <div id="network-availability-table-content"></div>
+            <nav class="d-flex align-items-center justify-content-between mt-2">
+              <div class="d-flex align-items-center gap-2">
+                <form
+                  id="network-availability-page-jump-form"
+                  class="d-flex align-items-center"
+                  style="gap: 0.25rem"
+                >
+                  <input
+                    type="number"
+                    class="form-control form-control-sm"
+                    style="width: 70px"
+                    placeholder="Page"
+                    min="1"
+                  />
+                  <button
+                    type="submit"
+                    class="btn btn-outline-secondary btn-sm"
+                  >
+                    Go
+                  </button>
+                </form>
+                <ul
+                  id="network-availability-pagination"
+                  class="pagination pagination-sm mb-0 flex-wrap"
+                ></ul>
+              </div>
+              <span
+                id="network-availability-list-range"
+                class="text-secondary small ms-auto"
+              ></span>
+            </nav>
+          </div>
+          <?!= include('frontend-network-availability-js'); ?>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<?!= include('frontend-open-in-sheets-js'); ?>
+<?!= include('frontend-spreadsheet-name-js'); ?>

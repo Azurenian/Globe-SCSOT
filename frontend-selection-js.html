@@ -1,0 +1,208 @@
+<!-- Ticket List Selection and Double Click Logic (T2 CRUD) -->
+<script>
+  (function () {
+    let lastSelectedIndex = null;
+    let selectedTicketIndices = new Set();
+
+    function updateTicketSelectionUI() {
+      const list = document.getElementById("ticket-list");
+      if (!list) return;
+      const items = list.querySelectorAll("li.list-group-item");
+      items.forEach((li, idx) => {
+        if (selectedTicketIndices.has(idx)) {
+          li.classList.add("selected-ticket-item");
+        } else {
+          li.classList.remove("selected-ticket-item");
+        }
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const list = document.getElementById("ticket-list");
+      if (!list) return;
+      let clickTimer = null;
+      list.addEventListener("click", function (e) {
+        const li = e.target.closest("li.list-group-item");
+        if (!li) return;
+        const items = Array.from(list.querySelectorAll("li.list-group-item"));
+        const idx = items.indexOf(li);
+        if (idx === -1) return;
+        // Handle selection only (no modal open)
+        if (e.ctrlKey || e.metaKey) {
+          // Toggle selection
+          if (selectedTicketIndices.has(idx)) {
+            selectedTicketIndices.delete(idx);
+          } else {
+            selectedTicketIndices.add(idx);
+          }
+          lastSelectedIndex = idx;
+        } else if (e.shiftKey && lastSelectedIndex !== null) {
+          // Range selection
+          const [start, end] = [lastSelectedIndex, idx].sort((a, b) => a - b);
+          for (let i = start; i <= end; i++) {
+            selectedTicketIndices.add(i);
+          }
+        } else {
+          // Single select
+          selectedTicketIndices.clear();
+          selectedTicketIndices.add(idx);
+          lastSelectedIndex = idx;
+        }
+        updateTicketSelectionUI();
+        // Set up for double click
+        if (clickTimer) {
+          clearTimeout(clickTimer);
+          clickTimer = null;
+        }
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+        }, 250);
+      });
+      list.addEventListener("dblclick", function (e) {
+        const li = e.target.closest("li.list-group-item");
+        if (!li) return;
+        const items = Array.from(list.querySelectorAll("li.list-group-item"));
+        const idx = items.indexOf(li);
+        if (idx === -1) return;
+        // Double click: open modal for this ticket only
+        selectedTicketIndices.clear();
+        selectedTicketIndices.add(idx);
+        lastSelectedIndex = idx;
+        updateTicketSelectionUI();
+        // --- Modal open logic moved here ---
+        window.modalTicketId = li.textContent.trim();
+        window.modalCurrentPage = 1;
+        window.modalCurrentSearch = "";
+        const pageSizeSelect = document.getElementById(
+          "ticket-modal-page-size"
+        );
+        window.modalPageSize = pageSizeSelect
+          ? parseInt(pageSizeSelect.value, 10)
+          : 5;
+        document.getElementById(
+          "ticketDetailsModalLabel"
+        ).textContent = `Ticket Details: ${window.modalTicketId}`;
+        document.getElementById("ticket-modal-search").value = "";
+        const modalElem = document.getElementById("ticketDetailsModal");
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
+        modal.show();
+        fetchTicketDetails(
+          window.modalTicketId,
+          window.modalCurrentPage,
+          window.modalPageSize,
+          window.modalCurrentSearch
+        );
+      });
+    });
+
+    // Expose selection for CRUD
+    window.getSelectedTicketIndices = function () {
+      return Array.from(selectedTicketIndices);
+    };
+    window.getSelectedTicketValues = function () {
+      const list = document.getElementById("ticket-list");
+      if (!list) return [];
+      const items = Array.from(list.querySelectorAll("li.list-group-item"));
+      return Array.from(selectedTicketIndices)
+        .map((idx) => items[idx]?.textContent?.trim())
+        .filter(Boolean);
+    };
+
+    window.clearTicketSelections = function () {
+      selectedTicketIndices.clear();
+      lastSelectedIndex = null;
+      updateTicketSelectionUI(); // Update UI after clearing
+    };
+  })();
+</script>
+
+<!-- Modal Table Row Selection and Double Click Logic (T2 CRUD) -->
+<script>
+  (function () {
+    let lastModalRowIndex = null;
+    let selectedModalRowIndices = new Set();
+
+    function updateModalRowSelectionUI() {
+      const tbody = document.getElementById("ticket-modal-table-body");
+      if (!tbody) return;
+      const rows = Array.from(tbody.querySelectorAll("tr"));
+      rows.forEach((tr, idx) => {
+        if (selectedModalRowIndices.has(idx)) {
+          tr.classList.add("selected-modal-row");
+        } else {
+          tr.classList.remove("selected-modal-row");
+        }
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const tbody = document.getElementById("ticket-modal-table-body");
+      if (!tbody) return;
+      let clickTimer = null;
+      tbody.addEventListener("click", function (e) {
+        const tr = e.target.closest("tr");
+        if (!tr) return;
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        const idx = rows.indexOf(tr);
+        if (idx === -1) return;
+        // Handle selection
+        if (e.ctrlKey || e.metaKey) {
+          if (selectedModalRowIndices.has(idx)) {
+            selectedModalRowIndices.delete(idx);
+          } else {
+            selectedModalRowIndices.add(idx);
+          }
+          lastModalRowIndex = idx;
+        } else if (e.shiftKey && lastModalRowIndex !== null) {
+          const [start, end] = [lastModalRowIndex, idx].sort((a, b) => a - b);
+          for (let i = start; i <= end; i++) {
+            selectedModalRowIndices.add(i);
+          }
+        } else {
+          selectedModalRowIndices.clear();
+          selectedModalRowIndices.add(idx);
+          lastModalRowIndex = idx;
+        }
+        updateModalRowSelectionUI();
+        // Set up for double click
+        if (clickTimer) {
+          clearTimeout(clickTimer);
+          clickTimer = null;
+        }
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+        }, 250);
+      });
+      tbody.addEventListener("dblclick", function (e) {
+        const tr = e.target.closest("tr");
+        if (!tr) return;
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        const idx = rows.indexOf(tr);
+        if (idx === -1) return;
+        selectedModalRowIndices.clear();
+        selectedModalRowIndices.add(idx);
+        lastModalRowIndex = idx;
+        updateModalRowSelectionUI();
+        tr.dispatchEvent(
+          new CustomEvent("modalRowDblClick", { bubbles: true })
+        );
+      });
+    });
+
+    // Expose selection for CRUD
+    window.getSelectedModalRowIndices = function () {
+      return Array.from(selectedModalRowIndices);
+    };
+    window.getSelectedModalRowData = function () {
+      const tbody = document.getElementById("ticket-modal-table-body");
+      if (!tbody) return [];
+      const rows = Array.from(tbody.querySelectorAll("tr"));
+      return Array.from(selectedModalRowIndices)
+        .map((idx) => {
+          const tds = Array.from(rows[idx]?.querySelectorAll("td") || []);
+          return tds.map((td) => td.textContent);
+        })
+        .filter((row) => row.length > 0);
+    };
+  })();
+</script>

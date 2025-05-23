@@ -1,0 +1,80 @@
+<!--
+  sidebar.html
+  Purpose: Contains the sidebar navigation for the dashboard app, including logo, title, and nav links.
+-->
+
+<div
+  class="sidebar d-flex flex-column shadow-sm"
+  style="min-width: 220px; max-width: 240px; border-right: 1px solid #e5e7eb"
+>
+  <div class="logo mb-2 mt-3 d-flex justify-content-center">
+    <img
+      src="https://raw.githubusercontent.com/Azurenian/DSCS/a8d16b1578d470e9ddbd7e8407698384999475b3/GlobeTelco.svg"
+      alt="Globe Logo"
+      style="height: 56px; width: auto"
+    />
+  </div>
+  <div
+    class="title mb-3 text-center small fw-light text-secondary px-3"
+    style="font-size: 0.95rem; letter-spacing: 0.04em"
+  >
+    Subsea Cable System Outage Tracker
+  </div>
+  <nav class="nav flex-column w-100 px-2">
+    <!-- Dashboard Nav Link -->
+    <a
+      id="dashboard-section-nav"
+      class="nav-link py-2 px-3 my-1 small rounded-3 text-secondary"
+      href="#"
+      onclick="showSection('dashboard-section'); return false;"
+      style="transition: background 0.2s, color 0.2s"
+      ><i class="bi bi-speedometer2 me-2"></i>Dashboard</a
+    >
+    <!-- Help Nav Link -->
+    <a
+      id="help-section-nav"
+      class="nav-link py-2 px-3 my-1 small rounded-3 text-secondary"
+      href="#"
+      onclick="showSection('help-section'); return false;"
+      style="transition: background 0.2s, color 0.2s"
+      ><i class="bi bi-question-circle me-2"></i>Help</a
+    >
+    <hr class="my-3" />
+    <!-- Settings Nav Link -->
+    <a
+      id="settings-section-nav"
+      class="nav-link py-2 px-3 my-1 small rounded-3 text-secondary"
+      href="#"
+      onclick="showSection('settings-section'); return false;"
+      style="transition: background 0.2s, color 0.2s"
+      ><i class="bi bi-gear me-2"></i>Settings</a
+    >
+    <div
+      class="d-flex align-items-center justify-content-between px-3 mb-2 mt-1"
+    >
+      <span
+        class="text-secondary d-flex align-items-center mt-1"
+        style="font-size: 0.97rem"
+      >
+        <i class="bi bi-moon-stars me-2 ps-1"></i> Dark Mode
+      </span>
+      <div class="form-check form-switch m-0">
+        <input
+          class="form-check-input"
+          type="checkbox"
+          id="dark-light-toggle"
+        />
+        <label class="form-check-label visually-hidden" for="dark-light-toggle"
+          >Toggle dark/light mode</label
+        >
+      </div>
+    </div>
+  </nav>
+
+  <!-- Version number at bottom of sidebar -->
+  <div class="mt-auto mb-3 text-center">
+    <span class="text-muted small" style="font-size: 0.8rem"
+      >scstov-dash_v1.a</span
+    >
+  </div>
+</div>

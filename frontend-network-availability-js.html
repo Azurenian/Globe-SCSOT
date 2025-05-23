@@ -1,0 +1,317 @@
+<!-- Network Availability Section Frontend Logic -->
+<script>
+  (function () {
+    // State
+    let segments = [];
+    let years = [];
+    let data = {};
+    let cableSystems = [];
+    let currentSegment = null;
+    let isLoading = false;
+    let currentCableSystem = null;
+
+    // Pagination state for years
+    let currentPage = 1;
+    let yearsPerPage = 5; // Default value, can be changed by user
+
+    function setLoading(loading) {
+      // Cover the whole card, not just the table
+      let cardBody = document.getElementById("network-availability-container");
+      while (cardBody && !cardBody.classList.contains("card-body")) {
+        cardBody = cardBody.parentElement;
+      }
+      let overlay = document.getElementById(
+        "network-availability-loading-overlay"
+      );
+      if (!cardBody) return;
+      if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "network-availability-loading-overlay";
+        overlay.className =
+          "position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex justify-content-center align-items-center";
+        overlay.style.zIndex = 10;
+        overlay.innerHTML =
+          '<div class="spinner-border text-white" role="status" aria-label="Loading"></div>';
+        cardBody.style.position = "relative";
+        cardBody.appendChild(overlay);
+      }
+      overlay.classList.toggle("d-none", !loading);
+      isLoading = loading;
+    }
+
+    function fetchAndRender() {
+      setLoading(true);
+      google.script.run
+        .withSuccessHandler(function (res) {
+          setLoading(false);
+          if (res.error) {
+            document.getElementById(
+              "network-availability-table-content"
+            ).innerHTML = `<div class='alert alert-danger'>${res.error}</div>`;
+            return;
+          }
+          cableSystems = res.cableSystems || [];
+          segments = res.segments;
+          years = res.years;
+          data = res.data;
+          if (!cableSystems.length || !segments.length || !years.length) {
+            document.getElementById(
+              "network-availability-table-content"
+            ).innerHTML =
+              '<div class="alert alert-warning">No network availability data available.</div>';
+            return;
+          }
+          // Set default cable system/segment/year
+          if (!currentCableSystem || !cableSystems.includes(currentCableSystem))
+            currentCableSystem = cableSystems[0];
+          if (!currentSegment || !segments.includes(currentSegment))
+            currentSegment = segments[0];
+
+          // Initialize years per page from selector, if available
+          const pageSizeSel = document.getElementById(
+            "network-availability-page-size"
+          );
+          if (pageSizeSel) {
+            yearsPerPage = parseInt(pageSizeSel.value, 10);
+          }
+
+          renderToolbar();
+          renderTable();
+          renderPagination(); // Add this call
+        })
+        .withFailureHandler(function () {
+          setLoading(false);
+          document.getElementById(
+            "network-availability-table-content"
+          ).innerHTML = `<div class='alert alert-danger'>Failed to load data.</div>`;
+        })
+        .getNetworkAvailabilityData();
+    }
+
+    function renderToolbar() {
+      // Cable System selector
+      const csSel = document.getElementById(
+        "network-availability-cable-system"
+      );
+      if (csSel) {
+        csSel.innerHTML = cableSystems
+          .map(
+            (cs) =>
+              `<option value="${cs}"${
+                cs === currentCableSystem ? " selected" : ""
+              }>${cs}</option>`
+          )
+          .join("");
+        csSel.onchange = function () {
+          currentCableSystem = this.value;
+          renderTable();
+          renderPagination();
+        };
+      }
+      // Segment selector (use full names, not abbreviations)
+      const segSel = document.getElementById("network-availability-segment");
+      segSel.innerHTML = segments
+        .map(
+          (seg) =>
+            `<option value="${seg}"${
+              seg === currentSegment ? " selected" : ""
+            }>${seg}</option>`
+        )
+        .join("");
+      segSel.onchange = function () {
+        currentSegment = this.value;
+        renderTable();
+        renderPagination();
+      };
+      // Year selector is removed, pagination handles year display
+      const yearSel = document.getElementById("network-availability-year");
+      if (yearSel) yearSel.parentElement.remove(); // Remove year selector if it exists
+
+      // Years per page selector
+      const pageSizeSel = document.getElementById(
+        "network-availability-page-size"
+      );
+      if (pageSizeSel) {
+        pageSizeSel.onchange = function () {
+          yearsPerPage = parseInt(this.value, 10);
+          currentPage = 1; // Reset to first page
+          renderTable();
+          renderPagination();
+        };
+      }
+
+      // Page jump form
+      const pageJumpForm = document.getElementById(
+        "network-availability-page-jump-form"
+      );
+      if (pageJumpForm) {
+        pageJumpForm.onsubmit = function (e) {
+          e.preventDefault();
+          const pageNum = parseInt(this.querySelector("input").value, 10);
+          const totalPages = Math.ceil(years.length / yearsPerPage);
+          if (pageNum >= 1 && pageNum <= totalPages) {
+            currentPage = pageNum;
+            renderTable();
+            renderPagination();
+          }
+          this.querySelector("input").value = ""; // Clear input
+        };
+      }
+    }
+
+    function renderTable() {
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      let html =
+        '<div class="table-responsive"><table class="table table-bordered table-striped table-sm network-availability-table">';
+      html += '<thead class="table-light"><tr><th>Year</th>';
+      for (let m = 0; m < 12; m++) html += `<th>${months[m]}</th>`;
+      html += "</tr></thead><tbody>";
+
+      // Paginate years
+      const startIndex = (currentPage - 1) * yearsPerPage;
+      const endIndex = startIndex + yearsPerPage;
+      const yearsToDisplay = years.slice(startIndex, endIndex);
+
+      yearsToDisplay.forEach((year) => {
+        html += `<tr><td>${year}</td>`;
+        for (let m = 0; m < 12; m++) {
+          let percent = data[currentCableSystem]?.[currentSegment]?.[year]?.[m];
+          if (typeof percent !== "number") percent = 100;
+          let colorClass = "";
+          let textClass = "";
+          if (percent >= 90)
+            colorClass = "na-darkblue"; // Changed from na-green to na-darkblue
+          else if (percent >= 70) colorClass = "na-lightgreen";
+          else if (percent >= 40) colorClass = "na-yellow";
+          else if (percent >= 20) {
+            colorClass = "na-orange";
+            textClass = "text-white";
+          } else {
+            colorClass = "na-red";
+            textClass = "text-white";
+          }
+          html += `<td class="${colorClass} ${textClass}">${percent.toFixed(
+            2
+          )}%</td>`;
+        }
+        html += "</tr>";
+      });
+
+      html += "</tbody></table></div>";
+      document.getElementById("network-availability-table-content").innerHTML =
+        html;
+      // Range text update will be handled by renderPagination
+    }
+
+    function renderPagination() {
+      const totalYears = years.length;
+      const totalPages = Math.ceil(totalYears / yearsPerPage);
+      const paginationEl = document.getElementById(
+        "network-availability-pagination"
+      );
+      const rangeEl = document.getElementById(
+        "network-availability-list-range"
+      );
+
+      if (!paginationEl || !rangeEl) return;
+
+      paginationEl.innerHTML = ""; // Clear existing pagination
+
+      if (totalPages <= 1) {
+        rangeEl.textContent = `Showing all ${totalYears} year(s) for ${currentCableSystem} / ${currentSegment}`;
+        return;
+      }
+
+      // Previous button
+      let li = document.createElement("li");
+      li.className = `page-item ${currentPage === 1 ? "disabled" : ""}`;
+      let a = document.createElement("a");
+      a.className = "page-link";
+      a.href = "#";
+      a.innerHTML = '<i class="bi bi-chevron-left"></i>'; // Changed text to icon
+      a.setAttribute("aria-label", "Previous"); // For accessibility
+      a.onclick = (e) => {
+        e.preventDefault();
+        if (currentPage > 1) {
+          currentPage--;
+          renderTable();
+          renderPagination();
+        }
+      };
+      li.appendChild(a);
+      paginationEl.appendChild(li);
+
+      // Page numbers (simplified for brevity, can be expanded with ellipses)
+      for (let i = 1; i <= totalPages; i++) {
+        li = document.createElement("li");
+        li.className = `page-item ${i === currentPage ? "active" : ""}`;
+        a = document.createElement("a");
+        a.className = "page-link";
+        a.href = "#";
+        a.textContent = i;
+        a.onclick = ((pageNum) => (e) => {
+          e.preventDefault();
+          currentPage = pageNum;
+          renderTable();
+          renderPagination();
+        })(i);
+        li.appendChild(a);
+        paginationEl.appendChild(li);
+      }
+
+      // Next button
+      li = document.createElement("li");
+      li.className = `page-item ${
+        currentPage === totalPages ? "disabled" : ""
+      }`;
+      a = document.createElement("a");
+      a.className = "page-link";
+      a.href = "#";
+      a.innerHTML = '<i class="bi bi-chevron-right"></i>'; // Changed text to icon
+      a.setAttribute("aria-label", "Next"); // For accessibility
+      a.onclick = (e) => {
+        e.preventDefault();
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderTable();
+          renderPagination();
+        }
+      };
+      li.appendChild(a);
+      paginationEl.appendChild(li);
+
+      // Update range text
+      const startYearIndex = (currentPage - 1) * yearsPerPage;
+      const endYearIndex = Math.min(
+        startYearIndex + yearsPerPage - 1,
+        totalYears - 1
+      );
+      rangeEl.textContent = `Showing years ${years[startYearIndex]}-${years[endYearIndex]} of ${totalYears} for ${currentCableSystem} / ${currentSegment}`;
+      // Update jump form input max value
+      const pageJumpInput = document.querySelector(
+        "#network-availability-page-jump-form input"
+      );
+      if (pageJumpInput) pageJumpInput.max = totalPages;
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      fetchAndRender();
+    });
+
+    // Expose refresh for universal refresh
+    window.refreshNetworkAvailability = fetchAndRender;
+  })();
+</script>

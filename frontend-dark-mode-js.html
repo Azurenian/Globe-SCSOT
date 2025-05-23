@@ -1,0 +1,80 @@
+<!-- Dark Mode Toggle Functionality -->
+<script>
+  (function () {
+    // DOM elements
+    const darkModeToggle = document.getElementById("dark-light-toggle");
+    const logoElement = document.querySelector(".sidebar .logo img");
+
+    // Logo URLs
+    const LIGHT_LOGO =
+      "https://raw.githubusercontent.com/Azurenian/DSCS/a8d16b1578d470e9ddbd7e8407698384999475b3/GlobeTelco.svg";
+    const DARK_LOGO =
+      "https://raw.githubusercontent.com/Azurenian/DSCS/refs/heads/main/GlobeTelco-White.png";
+
+    // Check for saved user preference
+    function getColorPreference() {
+      if (localStorage.getItem("darkMode") === "dark") return "dark";
+      if (localStorage.getItem("darkMode") === "light") return "light";
+      if (localStorage.getItem("darkMode") === "enabled") return "dark"; // Handle legacy format
+      if (localStorage.getItem("darkMode") === "disabled") return "light"; // Handle legacy format
+      return window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+    }
+
+    // Set the theme based on user preference
+    function setTheme(theme) {
+      document.documentElement.setAttribute("data-bs-theme", theme);
+      document.body.classList.toggle("dark-mode", theme === "dark");
+      if (darkModeToggle) {
+        darkModeToggle.checked = theme === "dark";
+      }
+
+      // Update logo based on theme
+      if (logoElement) {
+        logoElement.src = theme === "dark" ? DARK_LOGO : LIGHT_LOGO;
+        // Ensure good visibility with transition
+        gsap.fromTo(
+          logoElement,
+          { opacity: 0.7 },
+          { opacity: 1, duration: 0.4 }
+        );
+      }
+
+      localStorage.setItem("darkMode", theme);
+    }
+
+    // Initialize on page load
+    document.addEventListener("DOMContentLoaded", () => {
+      if (darkModeToggle) {
+        // Enable the toggle that's currently disabled
+        darkModeToggle.disabled = false;
+
+        // Set initial state based on preference
+        setTheme(getColorPreference());
+
+        // Handle toggle clicks
+        darkModeToggle.addEventListener("change", () => {
+          setTheme(darkModeToggle.checked ? "dark" : "light");
+        });
+
+        // Listen for OS theme changes
+        window
+          .matchMedia("(prefers-color-scheme: dark)")
+          .addEventListener("change", ({ matches }) => {
+            // Only auto-update if user hasn't set a preference
+            if (!localStorage.getItem("darkMode")) {
+              setTheme(matches ? "dark" : "light");
+            }
+          });
+      }
+    });
+
+    // Expose updateLogoForMode function for compatibility
+    window.updateLogoForMode = function (isDarkMode) {
+      if (logoElement) {
+        logoElement.src = isDarkMode ? DARK_LOGO : LIGHT_LOGO;
+      }
+    };
+  })();
+</script>

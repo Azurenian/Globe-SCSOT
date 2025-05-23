@@ -1,0 +1,166 @@
+<!-- Sidebar Navigation -->
+<script>
+  // Track active animations for cleanup
+  let currentAnimation = null;
+  let isNavigating = false;
+  let navigationDebounceTimer = null;
+
+  /**
+   * Shows the specified section and updates sidebar navigation state, with GSAP animations.
+   * @param {string} sectionId - The ID of the section to show.
+   * @returns {void}
+   */
+  function showSection(sectionId) {
+    // Prevent rapid navigation clicks
+    if (isNavigating) return;
+
+    // Clear any pending navigation debounce
+    if (navigationDebounceTimer) {
+      clearTimeout(navigationDebounceTimer);
+      navigationDebounceTimer = null;
+    }
+
+    isNavigating = true;
+
+    var sections = document.querySelectorAll(".section");
+    var target = document.getElementById(sectionId);
+    var currentlyVisible = null;
+
+    // Kill any in-progress animations
+    if (currentAnimation) {
+      currentAnimation.kill();
+      currentAnimation = null;
+    }
+
+    // Reset all sections to ensure proper state
+    sections.forEach(function (section) {
+      if (section === target) return;
+
+      // If a section is currently visible but not our target, mark it for transition
+      if (section.style.display !== "none") {
+        currentlyVisible = section;
+      }
+
+      // Reset any lingering animation properties
+      gsap.set(section, {
+        clearProps: "opacity,transform,y",
+      });
+    });
+
+    // If the target is already visible, just update navigation state
+    if (target && target.style.display !== "none") {
+      updateNavigationState(sectionId);
+      isNavigating = false;
+      return;
+    }
+
+    // Animate out the currently visible section (if any)
+    if (currentlyVisible) {
+      // Animate out: fade and slide up, then hide
+      currentAnimation = gsap.to(currentlyVisible, {
+        duration: 0.35,
+        opacity: 0,
+        y: -30,
+        pointerEvents: "none",
+        onComplete: function () {
+          currentlyVisible.style.display = "none";
+          // Reset any animation properties
+          gsap.set(currentlyVisible, {
+            clearProps: "opacity,transform,y,pointerEvents",
+          });
+
+          // Animate in the target section
+          if (target) {
+            target.style.display = "block";
+            target.style.opacity = 0;
+            target.style.transform = "translateY(30px)";
+
+            currentAnimation = gsap.to(target, {
+              duration: 0.4,
+              opacity: 1,
+              y: 0,
+              pointerEvents: "auto",
+              onComplete: function () {
+                gsap.set(target, {
+                  clearProps: "opacity,transform,y",
+                });
+                currentAnimation = null;
+                isNavigating = false;
+              },
+            });
+          } else {
+            currentAnimation = null;
+            isNavigating = false;
+          }
+        },
+      });
+    } else if (target) {
+      // No section currently visible, just animate in
+      target.style.display = "block";
+      target.style.opacity = 0;
+      target.style.transform = "translateY(30px)";
+
+      currentAnimation = gsap.to(target, {
+        duration: 0.4,
+        opacity: 1,
+        y: 0,
+        pointerEvents: "auto",
+        onComplete: function () {
+          gsap.set(target, {
+            clearProps: "opacity,transform,y",
+          });
+          currentAnimation = null;
+          isNavigating = false;
+        },
+      });
+    }
+
+    // Update the navigation state
+    updateNavigationState(sectionId);
+
+    // Add a brief debounce period to prevent rapid clicks
+    navigationDebounceTimer = setTimeout(function () {
+      if (isNavigating && !currentAnimation) {
+        // Failsafe: if we're stuck in navigating state with no animation,
+        // reset it after a short timeout
+        isNavigating = false;
+      }
+    }, 10); // Reduced from 500ms to 100ms for faster responsiveness
+  }
+
+  /**
+   * Updates the sidebar navigation state
+   * @param {string} sectionId - The ID of the active section
+   */
+  function updateNavigationState(sectionId) {
+    var navLinks = document.querySelectorAll(".sidebar .nav-link");
+    navLinks.forEach(function (link) {
+      link.classList.remove("active");
+    });
+    var activeLink = document.getElementById(sectionId + "-nav");
+    if (activeLink) {
+      activeLink.classList.add("active");
+    }
+  }
+
+  // Initialize dashboard as active section on page load
+  document.addEventListener("DOMContentLoaded", function () {
+    // Set dashboard as the default active section
+    const dashboardSection = document.getElementById("dashboard-section");
+    if (dashboardSection) {
+      dashboardSection.style.display = "block";
+    }
+
+    const dashboardLink = document.getElementById("dashboard-section-nav");
+    if (dashboardLink) {
+      dashboardLink.classList.add("active");
+    }
+
+    // Make sure all other sections are hidden on load
+    document.querySelectorAll(".section").forEach(function (section) {
+      if (section.id !== "dashboard-section") {
+        section.style.display = "none";
+      }
+    });
+  });
+</script>

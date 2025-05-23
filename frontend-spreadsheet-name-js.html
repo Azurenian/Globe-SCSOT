@@ -1,0 +1,21 @@
+<!-- Spreadsheet Name Display Logic -->
+<script>
+  (function () {
+    function setSpreadsheetName() {
+      var nameSpan = document.getElementById("spreadsheet-name-display");
+      if (!nameSpan) return;
+      google.script.run
+        .withSuccessHandler(function (name) {
+          if (name) {
+            nameSpan.textContent = name;
+            nameSpan.classList.remove("text-danger");
+          } else {
+            nameSpan.textContent = "No Sheet Linked";
+            nameSpan.classList.add("text-danger");
+          }
+        })
+        .getCurrentSpreadsheetName();
+    }
+    document.addEventListener("DOMContentLoaded", setSpreadsheetName);
+  })();
+</script>

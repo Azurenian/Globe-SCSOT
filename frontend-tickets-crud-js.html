@@ -1,0 +1,929 @@
+<!-- T2 Tickets CRUD Modal Logic (separate block) -->
+<script>
+  (function () {
+    // Helper function to show a generic confirmation modal
+    function showConfirmationModal(message, type = "success") {
+      let confirmationModalEl = document.getElementById("confirmationModal");
+      if (!confirmationModalEl) {
+        const modalHtml = `
+          <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="confirmationModalLabel">Operation Status</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="confirmationModalBody">
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        document.body.insertAdjacentHTML("beforeend", modalHtml);
+        confirmationModalEl = document.getElementById("confirmationModal");
+      }
+
+      const modalBody = confirmationModalEl.querySelector(
+        "#confirmationModalBody"
+      );
+      const modalLabel = confirmationModalEl.querySelector(
+        "#confirmationModalLabel"
+      );
+
+      modalBody.textContent = message;
+      modalBody.className = "modal-body"; // Reset class
+      if (type === "success") {
+        modalLabel.textContent = "Success";
+        modalBody.classList.add("text-success");
+      } else {
+        modalLabel.textContent = "Error";
+        modalBody.classList.add("text-danger");
+      }
+
+      const bsModal = new bootstrap.Modal(confirmationModalEl);
+      bsModal.show();
+    }
+
+    // --- Ticket List CRUD ---
+    document.addEventListener("DOMContentLoaded", function () {
+      let addTicketDropdownOptions = null;
+      let addTicketColumns = null;
+      // Helper to fetch columns and dropdowns
+      function ensureAddTicketMeta(cb) {
+        if (addTicketDropdownOptions && addTicketColumns) return cb();
+        google.script.run
+          .withSuccessHandler(function (opts) {
+            addTicketDropdownOptions = opts;
+            google.script.run
+              .withSuccessHandler(function (data) {
+                addTicketColumns = data[0];
+                cb();
+              })
+              .getSheetVal("MAJOR INCIDENTS_UPDATED");
+          })
+          .getDropdownOptions();
+      }
+      // Add Ticket
+      document
+        .querySelector('.btn-success[title="Add Ticket"]')
+        ?.addEventListener("click", function (e) {
+          const btn = e.currentTarget;
+          const originalHtml = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML =
+            '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+          ensureAddTicketMeta(function () {
+            const fieldsDiv = document.getElementById("add-ticket-fields");
+            fieldsDiv.innerHTML = "";
+            addTicketColumns.forEach((label, i) => {
+              const isRequired = i === 0 || !/description|remark/i.test(label);
+              const field = document.createElement("div");
+              field.className = "mb-3";
+              let inputHtml;
+              if (i === 1 || /start date|start time/i.test(label)) {
+                // 2nd column: Start Date/Time
+                inputHtml = `<input type="datetime-local" class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }/>`;
+              } else if (i === 2 || /end date|end time/i.test(label)) {
+                // 3rd column: End Date/Time
+                inputHtml = `<input type="datetime-local" class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }/>`;
+              } else if (i === 3 || /duration/i.test(label)) {
+                // 4th column: Duration (calculated, disabled)
+                inputHtml = `<input type="text" class="form-control" name="col${i}" readonly disabled placeholder="Auto-calculated"/>`;
+              } else if (/month/i.test(label)) {
+                // Added condition for Month
+                inputHtml = `<input type="text" class="form-control" name="col${i}" readonly disabled placeholder="Auto-calculated"/>`;
+              } else if (/year/i.test(label)) {
+                // Added condition for Year
+                inputHtml = `<input type="text" class="form-control" name="col${i}" readonly disabled placeholder="Auto-calculated"/>`;
+              } else if (/^cable system$/i.test(label)) {
+                inputHtml = `<select class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }>
+      <option value="">Select Cable System</option>
+      ${addTicketDropdownOptions.cableSystem
+        .map((opt) => `<option value="${opt}">${opt}</option>`)
+        .join("")}
+    </select>`;
+              } else if (/^affected segment$/i.test(label)) {
+                inputHtml = `<select class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }>
+      <option value="">Select Affected Segment</option>
+      ${addTicketDropdownOptions.affectedSegment
+        .map((opt) => `<option value="${opt}">${opt}</option>`)
+        .join("")}
+    </select>`;
+              } else {
+                inputHtml = `<input type="text" class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }/>`;
+              }
+              field.innerHTML = `<label class="form-label">${label}${
+                isRequired ? " <span class='text-danger'>*</span>" : ""
+              }</label>${inputHtml}`;
+              fieldsDiv.appendChild(field);
+            });
+            // Add event listeners for duration, month, and year calculation for ADD TICKET form
+            const ticketStartInput =
+              fieldsDiv.querySelector('input[name="col1"]');
+            const ticketEndInput =
+              fieldsDiv.querySelector('input[name="col2"]');
+            const ticketDurationInput =
+              fieldsDiv.querySelector('input[name="col3"]');
+
+            let ticketMonthInput, ticketYearInput;
+            const ticketMonthNames = [
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "May",
+              "Jun",
+              "Jul",
+              "Aug",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Dec",
+            ];
+
+            // Find month and year inputs based on addTicketColumns
+            addTicketColumns.forEach((label, i) => {
+              const labelText = label.toLowerCase();
+              if (labelText.includes("month")) {
+                ticketMonthInput = fieldsDiv.querySelector(
+                  `input[name="col${i}"]`
+                );
+              }
+              if (labelText.includes("year")) {
+                ticketYearInput = fieldsDiv.querySelector(
+                  `input[name="col${i}"]`
+                );
+              }
+            });
+
+            function updateAddTicketAutoFields() {
+              // Duration calculation
+              if (ticketStartInput && ticketEndInput && ticketDurationInput) {
+                const startVal = ticketStartInput.value;
+                const endVal = ticketEndInput.value;
+                if (startVal && endVal) {
+                  const start = new Date(startVal);
+                  const end = new Date(endVal);
+                  if (!isNaN(start) && !isNaN(end) && end > start) {
+                    const diffMs = end - start;
+                    const diffSec = Math.floor(diffMs / 1000);
+                    const h = Math.floor(diffSec / 3600);
+                    const m = Math.floor((diffSec % 3600) / 60);
+                    const s = diffSec % 60;
+                    ticketDurationInput.value = `${h
+                      .toString()
+                      .padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s
+                      .toString()
+                      .padStart(2, "0")}`;
+                  } else {
+                    ticketDurationInput.value = "";
+                  }
+                } else {
+                  ticketDurationInput.value = "";
+                }
+              }
+              // Month/Year calculation (from Start Date/Time)
+              if (ticketStartInput && ticketMonthInput) {
+                const startVal = ticketStartInput.value;
+                if (startVal) {
+                  const start = new Date(startVal);
+                  if (!isNaN(start)) {
+                    ticketMonthInput.value = ticketMonthNames[start.getMonth()];
+                  } else {
+                    ticketMonthInput.value = "";
+                  }
+                } else {
+                  ticketMonthInput.value = "";
+                }
+              }
+              if (ticketStartInput && ticketYearInput) {
+                const startVal = ticketStartInput.value;
+                if (startVal) {
+                  const start = new Date(startVal);
+                  if (!isNaN(start)) {
+                    ticketYearInput.value = start.getFullYear().toString();
+                  } else {
+                    ticketYearInput.value = "";
+                  }
+                } else {
+                  ticketYearInput.value = "";
+                }
+              }
+            }
+
+            if (ticketStartInput) {
+              ticketStartInput.addEventListener(
+                "change",
+                updateAddTicketAutoFields
+              );
+            }
+            if (ticketEndInput) {
+              // Also trigger for end input for duration
+              ticketEndInput.addEventListener(
+                "change",
+                updateAddTicketAutoFields
+              );
+            }
+
+            document.getElementById("add-ticket-form").reset?.();
+            const modalElem = document.getElementById("addTicketModal");
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
+            modal.show();
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+          });
+        });
+      // Delete Ticket
+      document
+        .querySelector('.btn-danger[title="Delete Ticket"]')
+        ?.addEventListener("click", function () {
+          const selected = window.getSelectedTicketValues();
+          const list = document.getElementById("delete-ticket-list");
+          list.innerHTML = "";
+          if (selected.length === 0) {
+            list.innerHTML =
+              '<li class="list-group-item text-danger">No tickets selected.</li>';
+            document.getElementById(
+              "confirm-delete-ticket-btn"
+            ).disabled = true;
+          } else {
+            selected.forEach((val) => {
+              const li = document.createElement("li");
+              li.className = "list-group-item";
+              li.textContent = val;
+              list.appendChild(li);
+            });
+            document.getElementById(
+              "confirm-delete-ticket-btn"
+            ).disabled = false;
+          }
+          const modalElem = document.getElementById("deleteTicketModal");
+          const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
+          modal.show();
+        });
+      // Add Ticket Form Submit
+      document
+        .getElementById("add-ticket-form")
+        ?.addEventListener("submit", function (e) {
+          e.preventDefault();
+          const btn = document.querySelector(
+            '#add-ticket-form button[type="submit"]'
+          );
+          let originalHtml;
+          if (btn) {
+            originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML =
+              '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...';
+          }
+          ensureAddTicketMeta(function () {
+            const fieldsDiv = document.getElementById("add-ticket-fields");
+            const inputs = fieldsDiv.querySelectorAll("input,select");
+            const rowData = Array.from(inputs).map((inp) => inp.value);
+            // Ticket ID is always first column
+            const ticketId = rowData[0]?.trim();
+            if (!ticketId) {
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+              }
+              return;
+            }
+            google.script.run
+              .withSuccessHandler(function (res) {
+                const addModalElem = document.getElementById("addTicketModal");
+                const addModal =
+                  bootstrap.Modal.getOrCreateInstance(addModalElem);
+                addModal.hide();
+                if (btn) {
+                  btn.disabled = false;
+                  btn.innerHTML = originalHtml;
+                }
+                if (res.success) {
+                  showConfirmationModal(
+                    "Ticket added successfully!",
+                    "success"
+                  );
+                  setTimeout(window.refreshAllData, 300);
+                } else {
+                  showConfirmationModal(
+                    res.error || "Failed to add ticket.",
+                    "error"
+                  );
+                }
+              })
+              .addTableRow(ticketId, rowData);
+          });
+        });
+      // Confirm Delete Ticket
+      document
+        .getElementById("confirm-delete-ticket-btn")
+        ?.addEventListener("click", function (e) {
+          const btn = e.currentTarget;
+          const originalHtml = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...';
+          const selected = window.getSelectedTicketValues();
+          if (!selected.length) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            return;
+          }
+          google.script.run
+            .withSuccessHandler(function (res) {
+              const deleteModalElem =
+                document.getElementById("deleteTicketModal");
+              const deleteModal =
+                bootstrap.Modal.getOrCreateInstance(deleteModalElem);
+              deleteModal.hide();
+              btn.disabled = false;
+              btn.innerHTML = originalHtml;
+              if (res.success) {
+                showConfirmationModal(
+                  "Ticket(s) deleted successfully!",
+                  "success"
+                );
+                setTimeout(window.refreshAllData, 300);
+              } else {
+                showConfirmationModal(
+                  res.error || "Failed to delete ticket(s).",
+                  "error"
+                );
+              }
+            })
+            .deleteTickets(selected);
+        });
+    });
+
+    // --- Modal Table CRUD ---
+    document.addEventListener("DOMContentLoaded", function () {
+      let dropdownOptions = null;
+
+      // Helper function to format a date value for datetime-local input
+      function formatLocalDateForInput(dateValue) {
+        if (!dateValue) return "";
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) return ""; // Invalid date
+
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, "0"); // getMonth() is 0-indexed
+        const day = date.getDate().toString().padStart(2, "0");
+        const hours = date.getHours().toString().padStart(2, "0");
+        const minutes = date.getMinutes().toString().padStart(2, "0");
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+
+      // Fetch dropdown options from backend on first use
+      function ensureDropdownOptions(cb) {
+        if (dropdownOptions) return cb();
+        google.script.run
+          .withSuccessHandler(function (opts) {
+            dropdownOptions = opts;
+            cb();
+          })
+          .getDropdownOptions();
+      }
+
+      // Add Table Row
+      document
+        .querySelector('.btn-success[title="Add Row"]')
+        ?.addEventListener("click", function (e) {
+          const btn = e.currentTarget;
+          const originalHtml = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...';
+          ensureDropdownOptions(function () {
+            document.getElementById("editTableRowModalLabel").textContent =
+              "Add Table Entry";
+            document.getElementById("edit-table-row-form").reset?.();
+            const fieldsDiv = document.getElementById("edit-table-row-fields");
+            fieldsDiv.innerHTML = "";
+            const headerCells = Array.from(
+              document.querySelectorAll("#ticket-modal-table-header th")
+            );
+            headerCells.forEach((th, i) => {
+              const label = th.textContent.trim();
+              const isRequired = !/description|remark/i.test(label);
+              const field = document.createElement("div");
+              field.className = "mb-3";
+              let inputHtml;
+              if (i === 1 || /start date|start time/i.test(label)) {
+                inputHtml = `<input type="datetime-local" class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }/>`;
+              } else if (i === 2 || /end date|end time/i.test(label)) {
+                inputHtml = `<input type="datetime-local" class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }/>`;
+              } else if (i === 3 || /duration/i.test(label)) {
+                inputHtml = `<input type="text" class="form-control" name="col${i}" readonly disabled placeholder="Auto-calculated"/>`;
+              } else if (/month/i.test(label)) {
+                inputHtml = `<input type="text" class="form-control" name="col${i}" readonly disabled placeholder="Auto-calculated"/>`;
+              } else if (/year/i.test(label)) {
+                inputHtml = `<input type="text" class="form-control" name="col${i}" readonly disabled placeholder="Auto-calculated"/>`;
+              } else if (/^cable system$/i.test(label)) {
+                inputHtml = `<select class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }>
+            <option value="">Select Cable System</option>
+            ${dropdownOptions.cableSystem
+              .map((opt) => `<option value="${opt}">${opt}</option>`)
+              .join("")}
+          </select>`;
+              } else if (/^affected segment$/i.test(label)) {
+                inputHtml = `<select class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }>
+            <option value="">Select Affected Segment</option>
+            ${dropdownOptions.affectedSegment
+              .map((opt) => `<option value="${opt}">${opt}</option>`)
+              .join("")}
+          </select>`;
+              } else {
+                inputHtml = `<input type="text" class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }/>`;
+              }
+              field.innerHTML = `<label class="form-label">${label}${
+                isRequired ? " <span class='text-danger'>*</span>" : ""
+              }</label>${inputHtml}`;
+              fieldsDiv.appendChild(field);
+            });
+            // Add event listeners for duration, month, year calculation for ADD ROW
+            const addStartInput = fieldsDiv.querySelector('input[name="col1"]');
+            const addEndInput = fieldsDiv.querySelector('input[name="col2"]');
+            const addDurationInput =
+              fieldsDiv.querySelector('input[name="col3"]');
+
+            let addMonthInput, addYearInput;
+            const monthNames = [
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "May",
+              "Jun",
+              "Jul",
+              "Aug",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Dec",
+            ]; // Array of month names
+            headerCells.forEach((th, idx) => {
+              const labelText = th.textContent.trim().toLowerCase();
+              if (labelText.includes("month")) {
+                addMonthInput = fieldsDiv.querySelector(
+                  `input[name="col${idx}"]`
+                );
+              }
+              if (labelText.includes("year")) {
+                addYearInput = fieldsDiv.querySelector(
+                  `input[name="col${idx}"]`
+                );
+              }
+            });
+
+            function updateAddFormAutoFields() {
+              // Duration
+              if (addStartInput && addEndInput && addDurationInput) {
+                const startVal = addStartInput.value;
+                const endVal = addEndInput.value;
+                if (startVal && endVal) {
+                  const start = new Date(startVal);
+                  const end = new Date(endVal);
+                  if (!isNaN(start) && !isNaN(end) && end > start) {
+                    const diffMs = end - start;
+                    const diffSec = Math.floor(diffMs / 1000);
+                    const h = Math.floor(diffSec / 3600);
+                    const m = Math.floor((diffSec % 3600) / 60);
+                    const s = diffSec % 60;
+                    addDurationInput.value = `${h
+                      .toString()
+                      .padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s
+                      .toString()
+                      .padStart(2, "0")}`;
+                  } else {
+                    addDurationInput.value = "";
+                  }
+                } else {
+                  addDurationInput.value = "";
+                }
+              }
+              // Month/Year (from Start Date/Time)
+              if (addStartInput && addMonthInput) {
+                const startVal = addStartInput.value;
+                if (startVal) {
+                  const start = new Date(startVal);
+                  if (!isNaN(start)) {
+                    addMonthInput.value = monthNames[start.getMonth()]; // Use month name
+                  } else {
+                    addMonthInput.value = "";
+                  }
+                } else {
+                  addMonthInput.value = "";
+                }
+              }
+              if (addStartInput && addYearInput) {
+                const startVal = addStartInput.value;
+                if (startVal) {
+                  const start = new Date(startVal);
+                  if (!isNaN(start)) {
+                    addYearInput.value = start.getFullYear().toString();
+                  } else {
+                    addYearInput.value = "";
+                  }
+                } else {
+                  addYearInput.value = "";
+                }
+              }
+            }
+
+            if (addStartInput) {
+              addStartInput.addEventListener("change", updateAddFormAutoFields);
+            }
+            if (addEndInput) {
+              addEndInput.addEventListener("change", updateAddFormAutoFields);
+            }
+
+            document.getElementById("save-table-row-btn").textContent = "Add";
+            document.getElementById("edit-table-row-form").onsubmit = function (
+              e
+            ) {
+              e.preventDefault();
+              const btn = document.querySelector(
+                '#edit-table-row-form button[type="submit"]'
+              );
+              let originalHtml;
+              if (btn) {
+                originalHtml = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML =
+                  '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...';
+              }
+              const ticketId = document
+                .getElementById("ticketDetailsModalLabel")
+                .textContent.replace("Ticket Details: ", "")
+                .trim();
+              // Use both input and select
+              const inputs = fieldsDiv.querySelectorAll("input,select");
+              const rowData = Array.from(inputs).map((inp) => inp.value);
+              google.script.run
+                .withSuccessHandler(function (res) {
+                  const editModalElem =
+                    document.getElementById("editTableRowModal");
+                  const editModal =
+                    bootstrap.Modal.getOrCreateInstance(editModalElem);
+                  editModal.hide();
+                  if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                  }
+                  if (res.success) {
+                    showConfirmationModal(
+                      "Table entry added successfully!",
+                      "success"
+                    );
+                    window.refreshAllData(); // Refresh data
+                  } else {
+                    showConfirmationModal(
+                      res.error || "Failed to add entry.",
+                      "error"
+                    );
+                  }
+                })
+                .addTableRow(ticketId, rowData);
+            };
+            const modalElem = document.getElementById("editTableRowModal");
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
+            modal.show();
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+          });
+        });
+      // Edit Table Row
+      document
+        .querySelector('.btn-primary[title="Edit Row"]')
+        ?.addEventListener("click", function (e) {
+          const btn = e.currentTarget;
+          const originalHtml = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...';
+          const selectedRows = window.getSelectedModalRowData();
+          if (selectedRows.length !== 1) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            return;
+          }
+          ensureDropdownOptions(function () {
+            document.getElementById("editTableRowModalLabel").textContent =
+              "Edit Table Entry";
+            const fieldsDiv = document.getElementById("edit-table-row-fields");
+            fieldsDiv.innerHTML = "";
+            const headerCells = Array.from(
+              document.querySelectorAll("#ticket-modal-table-header th")
+            );
+            selectedRows[0].forEach((val, i) => {
+              const label =
+                headerCells[i]?.textContent.trim() || `Column ${i + 1}`;
+              const isRequired = !/description|remark/i.test(label);
+              const field = document.createElement("div");
+              field.className = "mb-3";
+              let inputHtmlEdit;
+              if (i === 1 || /start date|start time/i.test(label)) {
+                inputHtmlEdit = `<input type="datetime-local" class="form-control" name="col${i}" value="${formatLocalDateForInput(
+                  val
+                )}" ${isRequired ? "required" : ""}/>`;
+              } else if (i === 2 || /end date|end time/i.test(label)) {
+                inputHtmlEdit = `<input type="datetime-local" class="form-control" name="col${i}" value="${formatLocalDateForInput(
+                  val
+                )}" ${isRequired ? "required" : ""}/>`;
+              } else if (i === 3 || /duration/i.test(label)) {
+                inputHtmlEdit = `<input type="text" class="form-control" name="col${i}" value="${
+                  val || ""
+                }" readonly disabled placeholder="Auto-calculated"/>`;
+              } else if (/month/i.test(label)) {
+                inputHtmlEdit = `<input type="text" class="form-control" name="col${i}" value="${
+                  val || ""
+                }" readonly disabled placeholder="Auto-calculated"/>`;
+              } else if (/year/i.test(label)) {
+                inputHtmlEdit = `<input type="text" class="form-control" name="col${i}" value="${
+                  val || ""
+                }" readonly disabled placeholder="Auto-calculated"/>`;
+              } else if (/^cable system$/i.test(label)) {
+                inputHtmlEdit = `<select class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }>
+            <option value="">Select Cable System</option>
+            ${dropdownOptions.cableSystem
+              .map(
+                (opt) =>
+                  `<option value="${opt}"${
+                    val === opt ? " selected" : ""
+                  }>${opt}</option>`
+              )
+              .join("")}
+          </select>`;
+              } else if (/^affected segment$/i.test(label)) {
+                inputHtmlEdit = `<select class="form-control" name="col${i}" ${
+                  isRequired ? "required" : ""
+                }>
+            <option value="">Select Affected Segment</option>
+            ${dropdownOptions.affectedSegment
+              .map(
+                (opt) =>
+                  `<option value="${opt}"${
+                    val === opt ? " selected" : ""
+                  }>${opt}</option>`
+              )
+              .join("")}
+          </select>`;
+              } else {
+                inputHtmlEdit = `<input type="text" class="form-control" name="col${i}" value="${
+                  val || ""
+                }" ${isRequired ? "required" : ""}/>`;
+              }
+              field.innerHTML = `<label class="form-label">${label}${
+                isRequired ? " <span class='text-danger'>*</span>" : ""
+              }</label>${inputHtmlEdit}`;
+              fieldsDiv.appendChild(field);
+            });
+            // Add event listeners for duration, month, year calculation
+            const startInput = fieldsDiv.querySelector('input[name="col1"]');
+            const endInput = fieldsDiv.querySelector('input[name="col2"]');
+            const durationInput = fieldsDiv.querySelector('input[name="col3"]');
+
+            let monthInputToUpdate, yearInputToUpdate;
+            const editMonthNames = [
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "May",
+              "Jun",
+              "Jul",
+              "Aug",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Dec",
+            ]; // Array of month names for edit
+            headerCells.forEach((th, idx) => {
+              const labelText = th.textContent.trim().toLowerCase();
+              if (labelText.includes("month")) {
+                monthInputToUpdate = fieldsDiv.querySelector(
+                  `input[name="col${idx}"]`
+                );
+              }
+              if (labelText.includes("year")) {
+                yearInputToUpdate = fieldsDiv.querySelector(
+                  `input[name="col${idx}"]`
+                );
+              }
+            });
+
+            function updateAutoFields() {
+              // Duration
+              if (startInput && endInput && durationInput) {
+                const startVal = startInput.value;
+                const endVal = endInput.value;
+                if (startVal && endVal) {
+                  const start = new Date(startVal);
+                  const end = new Date(endVal);
+                  if (!isNaN(start) && !isNaN(end) && end > start) {
+                    const diffMs = end - start;
+                    const diffSec = Math.floor(diffMs / 1000);
+                    const h = Math.floor(diffSec / 3600);
+                    const m = Math.floor((diffSec % 3600) / 60);
+                    const s = diffSec % 60;
+                    durationInput.value = `${h.toString().padStart(2, "0")}:${m
+                      .toString()
+                      .padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+                  } else {
+                    durationInput.value = "";
+                  }
+                } else {
+                  durationInput.value = "";
+                }
+              }
+              // Month/Year (from Start Date/Time)
+              if (startInput && monthInputToUpdate) {
+                const startVal = startInput.value;
+                if (startVal) {
+                  const start = new Date(startVal);
+                  if (!isNaN(start)) {
+                    monthInputToUpdate.value = editMonthNames[start.getMonth()]; // Use month name
+                  } else {
+                    monthInputToUpdate.value = "";
+                  }
+                } else {
+                  monthInputToUpdate.value = "";
+                }
+              }
+              if (startInput && yearInputToUpdate) {
+                const startVal = startInput.value;
+                if (startVal) {
+                  const start = new Date(startVal);
+                  if (!isNaN(start)) {
+                    yearInputToUpdate.value = start.getFullYear().toString();
+                  } else {
+                    yearInputToUpdate.value = "";
+                  }
+                } else {
+                  yearInputToUpdate.value = "";
+                }
+              }
+            }
+            if (startInput) {
+              startInput.addEventListener("change", updateAutoFields);
+            }
+            if (endInput) {
+              endInput.addEventListener("change", updateAutoFields);
+            }
+            document.getElementById("save-table-row-btn").textContent = "Save";
+            document.getElementById("edit-table-row-form").onsubmit = function (
+              e
+            ) {
+              e.preventDefault();
+              const btn = document.querySelector(
+                '#edit-table-row-form button[type="submit"]'
+              );
+              let originalHtml;
+              if (btn) {
+                originalHtml = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML =
+                  '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...';
+              }
+              const ticketId = document
+                .getElementById("ticketDetailsModalLabel")
+                .textContent.replace("Ticket Details: ", "")
+                .trim();
+              // Use both input and select
+              const inputs = fieldsDiv.querySelectorAll("input,select");
+              const rowData = Array.from(inputs).map((inp) => inp.value);
+              const rowIndex = window.getSelectedModalRowIndices()[0];
+              google.script.run
+                .withSuccessHandler(function (res) {
+                  const editModalElem =
+                    document.getElementById("editTableRowModal");
+                  const editModal =
+                    bootstrap.Modal.getOrCreateInstance(editModalElem);
+                  editModal.hide();
+                  if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                  }
+                  if (res.success) {
+                    showConfirmationModal(
+                      "Table entry edited successfully!",
+                      "success"
+                    );
+                    window.refreshAllData();
+                  } else {
+                    showConfirmationModal(
+                      res.error || "Failed to edit entry.",
+                      "error"
+                    );
+                  }
+                })
+                .editTableRow(ticketId, rowIndex, rowData);
+            };
+            const modalElem = document.getElementById("editTableRowModal");
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
+            modal.show();
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+          });
+        });
+      // Delete Table Row
+      document
+        .querySelector('.btn-danger[title="Delete Row"]')
+        ?.addEventListener("click", function () {
+          const selected = window.getSelectedModalRowData();
+          const list = document.getElementById("delete-table-row-list");
+          list.innerHTML = "";
+          if (selected.length === 0) {
+            list.innerHTML =
+              '<li class="list-group-item text-danger">No entries selected.</li>';
+            document.getElementById(
+              "confirm-delete-table-row-btn"
+            ).disabled = true;
+          } else {
+            selected.forEach((row) => {
+              const li = document.createElement("li");
+              li.className = "list-group-item";
+              li.textContent = row.join(" | ");
+              list.appendChild(li);
+            });
+            document.getElementById(
+              "confirm-delete-table-row-btn"
+            ).disabled = false;
+          }
+          const modalElem = document.getElementById("deleteTableRowModal");
+          const modal = bootstrap.Modal.getOrCreateInstance(modalElem);
+          modal.show();
+        });
+      // Confirm Delete Table Row
+      document
+        .getElementById("confirm-delete-table-row-btn")
+        ?.addEventListener("click", function (e) {
+          const btn = e.currentTarget;
+          const originalHtml = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...';
+          const ticketId = document
+            .getElementById("ticketDetailsModalLabel")
+            .textContent.replace("Ticket Details: ", "")
+            .trim();
+          const selectedRows = window.getSelectedModalRowData();
+          const rowIndices = window.getSelectedModalRowIndices();
+          if (!ticketId || selectedRows.length === 0) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            return;
+          }
+          google.script.run
+            .withSuccessHandler(function (res) {
+              const deleteModalElem = document.getElementById(
+                "deleteTableRowModal"
+              );
+              const deleteModal =
+                bootstrap.Modal.getOrCreateInstance(deleteModalElem);
+              deleteModal.hide();
+              btn.disabled = false;
+              btn.innerHTML = originalHtml;
+              if (res.success) {
+                showConfirmationModal(
+                  "Table entry(s) deleted successfully!",
+                  "success"
+                );
+                setTimeout(window.refreshAllData, 300);
+              } else {
+                showConfirmationModal(
+                  res.error || "Failed to delete entry(s).",
+                  "error"
+                );
+              }
+            })
+            .deleteTableRows(ticketId, rowIndices);
+        });
+    });
+  })();
+</script>

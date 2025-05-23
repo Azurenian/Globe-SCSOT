@@ -1,0 +1,309 @@
+<!-- Ticket Details Modal -->
+<div
+  class="modal fade"
+  id="ticketDetailsModal"
+  tabindex="-1"
+  aria-labelledby="ticketDetailsModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ticketDetailsModalLabel">Ticket Details</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body position-relative">
+        <!-- Modal Loading Overlay -->
+        <div
+          id="ticket-modal-loading-overlay"
+          class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex justify-content-center align-items-center d-none"
+          style="z-index: 20"
+        >
+          <div
+            class="spinner-border text-white"
+            role="status"
+            aria-label="Loading"
+          ></div>
+        </div>
+        <!-- Error Message -->
+        <div
+          id="ticket-modal-error"
+          class="alert alert-danger d-none"
+          role="alert"
+        ></div>
+        <!-- CRUD Buttons Row -->
+        <div class="d-flex gap-2 mb-3 align-items-center">
+          <button type="button" class="btn btn-success btn-sm" title="Add Row">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" title="Edit Row">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger btn-sm"
+            title="Delete Row"
+          >
+            <i class="bi bi-trash"></i>
+          </button>
+          <input
+            type="text"
+            id="ticket-modal-search"
+            class="form-control form-control-sm ms-2"
+            style="max-width: 180px"
+            placeholder="Search in ticket..."
+          />
+          <button
+            type="button"
+            id="ticket-modal-search-btn"
+            class="btn btn-outline-secondary btn-sm ms-1"
+            title="Search"
+          >
+            <i class="bi bi-search"></i>
+          </button>
+          <button
+            type="button"
+            id="ticket-modal-reset-btn"
+            class="btn btn-outline-secondary btn-sm ms-1"
+            title="Reset"
+          >
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+          <div class="d-flex align-items-center ms-auto" style="gap: 0.5rem">
+            <label for="ticket-modal-page-size" class="mb-0 small"
+              >Items per page:</label
+            >
+            <select
+              id="ticket-modal-page-size"
+              class="form-select form-select-sm"
+              style="width: auto; min-width: 60px; display: inline-block"
+            >
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+        <!-- Sorting Controls Placeholder -->
+        <div id="ticket-modal-sorting-controls" class="mb-2">
+          <!-- Sorting controls will be added here in the future -->
+        </div>
+        <!-- Table -->
+        <div class="table-responsive">
+          <table
+            class="table table-bordered table-hover table-striped align-middle"
+            id="ticket-modal-table"
+          >
+            <thead class="table-light">
+              <tr id="ticket-modal-table-header"></tr>
+            </thead>
+            <tbody id="ticket-modal-table-body"></tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <nav
+          class="d-flex align-items-center justify-content-between mt-2 gap-2"
+        >
+          <form
+            id="ticket-modal-page-jump-form"
+            class="d-flex align-items-center"
+            style="gap: 0.25rem"
+          >
+            <input
+              type="number"
+              min="1"
+              id="ticket-modal-page-jump"
+              class="form-control form-control-sm"
+              style="width: 80px"
+              placeholder="Page"
+            />
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+              Go
+            </button>
+          </form>
+          <ul
+            id="ticket-modal-pagination"
+            class="pagination pagination-sm mb-0 flex-wrap"
+          ></ul>
+          <span
+            id="ticket-modal-list-range"
+            class="text-secondary small ms-auto"
+          ></span>
+        </nav>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Ticket Modal -->
+<div
+  class="modal fade"
+  id="addTicketModal"
+  tabindex="-1"
+  aria-labelledby="addTicketModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addTicketModalLabel">Add New Ticket</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="add-ticket-form">
+          <div id="add-ticket-fields"></div>
+          <div class="text-end mt-3">
+            <button type="submit" class="btn btn-primary">Add Ticket</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Ticket Confirmation Modal -->
+<div
+  class="modal fade"
+  id="deleteTicketModal"
+  tabindex="-1"
+  aria-labelledby="deleteTicketModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteTicketModalLabel">
+          Delete Ticket(s)
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Are you sure you want to delete the selected ticket(s)? This action
+          cannot be undone.
+        </p>
+        <ul id="delete-ticket-list" class="list-group mb-3"></ul>
+        <div class="text-end">
+          <button
+            type="button"
+            class="btn btn-danger"
+            id="confirm-delete-ticket-btn"
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Table Row Modal -->
+<div
+  class="modal fade"
+  id="editTableRowModal"
+  tabindex="-1"
+  aria-labelledby="editTableRowModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editTableRowModalLabel">
+          Edit Table Entry
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-table-row-form">
+          <div id="edit-table-row-fields"></div>
+          <div class="text-end mt-3">
+            <button
+              type="submit"
+              class="btn btn-primary"
+              id="save-table-row-btn"
+            >
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Table Row Confirmation Modal -->
+<div
+  class="modal fade"
+  id="deleteTableRowModal"
+  tabindex="-1"
+  aria-labelledby="deleteTableRowModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteTableRowModalLabel">
+          Delete Table Entry(ies)
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Are you sure you want to delete the selected entry(ies)? This action
+          cannot be undone.
+        </p>
+        <ul id="delete-table-row-list" class="list-group mb-3"></ul>
+        <div class="text-end">
+          <button
+            type="button"
+            class="btn btn-danger"
+            id="confirm-delete-table-row-btn"
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

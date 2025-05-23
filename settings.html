@@ -1,0 +1,126 @@
+<!--
+  settings.html
+  Purpose: Settings section for the dashboard. Allows user to set the Google Sheet ID.
+-->
+<div
+  id="settings-section"
+  class="section"
+  style="display: none; min-height: 100vh"
+>
+  <div class="container py-5" style="max-width: 500px">
+    <h2 class="fw-light mb-3" style="font-size: 1.5rem">
+      Dashboard Configuration
+    </h2>
+
+    <!-- Google Sheet ID Configuration -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 class="card-title">
+          <i class="bi bi-file-earmark-spreadsheet me-2"></i>Google Sheet
+          Connection
+        </h5>
+        <p class="card-text text-muted">
+          Connect to a Google Sheet containing your submarine cable system data.
+        </p>
+
+        <form id="sheet-id-form" class="mt-3">
+          <div class="mb-3">
+            <label for="sheet-id-input" class="form-label"
+              >Google Sheet Link or ID</label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="sheet-id-input"
+              placeholder="Enter Google Sheet ID or URL"
+              required
+            />
+            <div class="form-text">
+              Paste a Google Sheet URL or its ID (found in the URL between /d/
+              and /edit)
+            </div>
+          </div>
+          <div class="d-flex justify-content-between">
+            <button
+              type="button"
+              id="remove-sheet-id-btn"
+              class="btn btn-outline-danger"
+            >
+              <i class="bi bi-trash"></i> Remove Connection
+            </button>
+            <button
+              type="submit"
+              id="sheet-id-save-btn"
+              class="btn btn-primary"
+            >
+              <span
+                id="sheet-id-btn-spinner"
+                class="spinner-border spinner-border-sm me-2 d-none"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              <span id="sheet-id-btn-text">Save & Apply</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- NEW: Data Sheet Name Configuration -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 class="card-title">
+          <i class="bi bi-table me-2"></i>Data Sheet Name
+        </h5>
+        <p class="card-text text-muted">
+          Specify the name of the sheet containing your incident data.
+        </p>
+
+        <form id="sheet-name-form" class="mt-3">
+          <div class="mb-3">
+            <label for="sheet-name-input" class="form-label">Sheet Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="sheet-name-input"
+              placeholder="e.g., MAJOR INCIDENTS_UPDATED"
+              required
+            />
+            <div class="form-text">
+              Enter the exact name of the sheet tab containing your data
+            </div>
+          </div>
+          <div class="d-flex justify-content-between">
+            <button
+              type="button"
+              id="reset-sheet-name-btn"
+              class="btn btn-outline-secondary"
+            >
+              <i class="bi bi-arrow-counterclockwise"></i> Reset to Default
+            </button>
+            <button
+              type="submit"
+              id="sheet-name-save-btn"
+              class="btn btn-primary"
+            >
+              <span
+                id="sheet-name-btn-spinner"
+                class="spinner-border spinner-border-sm me-2 d-none"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              <span id="sheet-name-btn-text">Save</span>
+            </button>
+          </div>
+        </form>
+
+        <div class="alert alert-info mt-3 mb-0">
+          <i class="bi bi-info-circle me-2"></i>
+          <strong>Current Sheet Name:</strong>
+          <span id="current-sheet-name">Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <?!= include('frontend-settings-js'); ?>
+</div>

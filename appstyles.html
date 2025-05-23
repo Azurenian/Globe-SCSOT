@@ -1,0 +1,574 @@
+<!--
+  appstyles.html
+  Purpose: Contains all custom CSS styles for the dashboard app, including layout and sidebar styling.
+-->
+
+<style>
+  body {
+    overflow: hidden;
+    font-family: "Inter", sans-serif; /* Use Inter font globally */
+    background: #f8f9fa !important;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  .sidebar {
+    width: 250px;
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background: #ffffff; /* Explicit light mode background */
+    color: #212529;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 2rem;
+    z-index: 1000;
+    transition: background-color 0.3s ease, color 0.3s ease,
+      border-color 0.3s ease;
+  }
+  .sidebar .logo {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+  .sidebar .logo img {
+    transition: opacity 0.3s ease;
+  }
+  .sidebar .title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 2rem;
+  }
+  .sidebar .nav-link {
+    color: #495057 !important;
+    font-size: 0.97rem;
+    border-radius: 0.75rem;
+    margin-left: 0.25rem;
+    margin-right: 0.25rem;
+    transition: background 0.2s, color 0.2s;
+  }
+  .sidebar .nav-link.active,
+  .sidebar .nav-link:hover {
+    background: #26348d !important;
+    color: #fff !important;
+    border-radius: 0.75rem !important;
+    font-weight: 500;
+  }
+  /* Sidebar horizontal line style for light mode */
+  .sidebar hr {
+    border-top: 1.5px solid #e5e7eb;
+    opacity: 1;
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+    transition: border-color 0.3s ease;
+  }
+  .main-content {
+    margin-left: 250px;
+    height: 100vh;
+    overflow-y: auto;
+    transition: background-color 0.3s ease;
+  }
+  .section {
+    min-height: 100vh;
+    background-color: #f8f9fa; /* Light mode default background */
+    transition: background-color 0.3s ease;
+  }
+  #ticket-search {
+    min-width: 120px;
+  }
+  #ticket-pagination {
+    justify-content: flex-end;
+  }
+  #ticket-pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+  }
+  #ticket-pagination .page-link {
+    color: #0d6efd;
+    cursor: pointer;
+  }
+  #ticket-list-container {
+    position: relative;
+  }
+  /* Ticket item hover for clickable list */
+  #ticket-list .list-group-item.ticket-hover,
+  #ticket-list .list-group-item:hover {
+    background-color: #26348d !important; /* Changed from #0d6efd to #26348d */
+    color: #fff !important;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  /* Selected ticket item in list */
+  #ticket-list .list-group-item.selected-ticket-item {
+    background-color: #e3f0ff !important;
+    color: #26348d !important; /* Changed from #0d6efd to #26348d */
+    border-left: 4px solid #26348d; /* Changed from #0d6efd to #26348d */
+    font-weight: 500;
+  }
+  /* Modal table styling */
+  #ticket-modal-table th,
+  #ticket-modal-table td {
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  #ticket-modal-table th {
+    background: #f8f9fa;
+    font-weight: 500;
+    user-select: none;
+  }
+  #ticket-modal-error {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+  /* Selected row in modal table */
+  #ticket-modal-table tbody tr.selected-modal-row,
+  #ticket-modal-table tbody tr.selected-modal-row td {
+    background-color: #26348d !important; /* Changed from #0d6efd to #26348d */
+    color: #fff !important;
+    font-weight: 500;
+  }
+  /* CRUD modal form field spacing */
+  #edit-table-row-fields .form-label {
+    font-weight: 500;
+  }
+  #edit-table-row-fields .form-control {
+    margin-bottom: 0.5rem;
+  }
+  /* Confirmation modal list spacing */
+  #delete-ticket-list,
+  #delete-table-row-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+  }
+  /* Outage Summary Table Custom Styles */
+  .outage-summary-table th,
+  .outage-summary-table td {
+    vertical-align: middle;
+  }
+  .outage-summary-table th {
+    background: #f0f4fa;
+    font-weight: 600;
+  }
+  .outage-summary-table th.cable-system-header {
+    text-align: center;
+  }
+  .outage-summary-table td.text-center {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Network Availability Table Styles */
+  .network-availability-table th,
+  .network-availability-table td {
+    vertical-align: middle;
+    text-align: center;
+  }
+  .network-availability-table th {
+    background: #f0f4fa;
+    font-weight: 600;
+  }
+  /* Added explicit striping for network availability table in light mode */
+  .network-availability-table.table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: #f8fafc;
+  }
+  .network-availability-table.table-striped > tbody > tr:nth-of-type(even) > * {
+    background-color: #ffffff;
+  }
+
+  #network-availability-toolbar label {
+    margin-right: 0.5rem;
+  }
+  #network-availability-cable-system {
+    margin-right: 0.5rem;
+  }
+  #network-availability-pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+  }
+  #network-availability-pagination .page-link {
+    color: #0d6efd;
+    cursor: pointer;
+  }
+  #network-availability-container {
+    position: relative;
+  }
+  #network-availability-table-content {
+    min-height: 0;
+    margin-bottom: 0;
+  }
+  /* Network Availability Cell Background Colors */
+  .na-darkblue {
+    background-color: #26348d !important;
+    color: #fff !important;
+  }
+
+  /* Add striped variant for dark blue cells */
+  .table-striped > tbody > tr:nth-of-type(odd) > .na-darkblue {
+    background-color: #26348d !important; /* Base color */
+    color: #fff !important;
+  }
+
+  .table-striped > tbody > tr:nth-of-type(even) > .na-darkblue {
+    background-color: #1e2870 !important; /* Darker shade for striping effect */
+    color: #fff !important;
+  }
+
+  /* Dark mode variants */
+  body.dark-mode .table-striped > tbody > tr:nth-of-type(odd) > .na-darkblue {
+    background-color: #26348d !important;
+    color: #fff !important;
+  }
+
+  body.dark-mode .table-striped > tbody > tr:nth-of-type(even) > .na-darkblue {
+    background-color: #1e2870 !important;
+    color: #fff !important;
+  }
+
+  /* Explicitly keep yellow and light green cells with black text in dark mode */
+  body.dark-mode .na-lightgreen,
+  body.dark-mode .table-striped > tbody > tr > .na-lightgreen {
+    color: #212529 !important;
+  }
+
+  body.dark-mode .na-yellow,
+  body.dark-mode .table-striped > tbody > tr > .na-yellow {
+    color: #212529 !important;
+  }
+
+  .na-lightgreen {
+    background-color: #b9e7c5 !important;
+    color: #212529;
+  }
+  .na-yellow {
+    background-color: #ffe066 !important;
+    color: #212529;
+  }
+  .na-orange {
+    background-color: #fd7e14 !important; /* Bootstrap orange */
+    color: #fff !important;
+  }
+  .na-red {
+    background-color: #dc3545 !important; /* Bootstrap red */
+    color: #fff !important;
+  }
+  #dashboard-section {
+    background: none !important;
+  }
+
+  /* ====== DARK MODE STYLES ====== */
+  /* Apply dark mode styles when the .dark-mode class is added to body */
+  body.dark-mode {
+    background: #030e21 !important;
+    color: #e1e7ef;
+  }
+
+  /* Dark mode section backgrounds */
+  body.dark-mode .section {
+    background-color: #030e21;
+  }
+
+  /* Sidebar Dark Mode - with higher specificity to override Bootstrap's bg classes */
+  body.dark-mode .sidebar {
+    background: #051529 !important;
+    color: #e1e7ef;
+    border-right-color: #0d2444 !important;
+  }
+
+  body.dark-mode .sidebar .nav-link {
+    color: #ffffff !important; /* Changed to white text in normal state */
+  }
+
+  body.dark-mode .sidebar hr {
+    border-top: 1.5px solid #172a45;
+  }
+
+  /* Inverted colors for sidebar nav links in dark mode */
+  body.dark-mode .sidebar .nav-link.active,
+  body.dark-mode .sidebar .nav-link:hover {
+    background: #ffffff !important; /* White background */
+    color: #26348d !important; /* Blue text when active/hovered */
+    border-radius: 0.75rem !important;
+    font-weight: 500;
+  }
+
+  /* Content area Dark Mode */
+  body.dark-mode .main-content {
+    background-color: #030e21;
+  }
+
+  /* Cards Dark Mode */
+  body.dark-mode .card {
+    background-color: #051529;
+    border-color: #0d2444;
+  }
+
+  body.dark-mode .card-body {
+    background-color: #051529;
+    color: #e1e7ef;
+  }
+
+  body.dark-mode .card-title {
+    color: #e1e7ef;
+  }
+
+  /* Tables Dark Mode */
+  body.dark-mode .table {
+    color: #e1e7ef;
+    border-color: #172a45;
+  }
+
+  body.dark-mode .table-bordered {
+    border-color: #172a45;
+  }
+
+  body.dark-mode .table-bordered td,
+  body.dark-mode .table-bordered th {
+    border-color: #172a45;
+  }
+
+  body.dark-mode .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: #0a1e30;
+    color: #e1e7ef;
+  }
+
+  body.dark-mode .table-striped > tbody > tr:nth-of-type(even) > * {
+    background-color: #051529;
+  }
+
+  body.dark-mode .table-hover tbody tr:hover,
+  body.dark-mode .table-hover tbody tr:hover td {
+    background-color: #0d2444;
+    color: #ffffff;
+  }
+
+  body.dark-mode .table-light,
+  body.dark-mode .table thead th {
+    background-color: #0d2444 !important;
+    color: #e1e7ef;
+    border-color: #172a45;
+  }
+
+  /* Form elements Dark Mode */
+  body.dark-mode .form-control,
+  body.dark-mode .form-select {
+    background-color: #051529;
+    border-color: #172a45;
+    color: #e1e7ef;
+  }
+
+  /* Disabled form controls in dark mode */
+  body.dark-mode .form-control:disabled,
+  body.dark-mode .form-control[readonly] {
+    background-color: #0d2444 !important;
+    color: #8896b3;
+    border-color: #172a45;
+  }
+
+  body.dark-mode .form-control:focus,
+  body.dark-mode .form-select:focus {
+    background-color: #0a1e30;
+    border-color: #3b82f6;
+    color: #ffffff;
+  }
+
+  body.dark-mode .form-control::placeholder {
+    color: #8896b3;
+  }
+
+  body.dark-mode .input-group-text {
+    background-color: #0d2444;
+    border-color: #172a45;
+    color: #e1e7ef;
+  }
+
+  /* Buttons Dark Mode */
+  body.dark-mode .btn-outline-secondary {
+    color: #a8b3cf;
+    border-color: #172a45;
+  }
+
+  body.dark-mode .btn-outline-secondary:hover {
+    background-color: #0d2444;
+    color: #ffffff;
+  }
+
+  /* Badges and Alerts Dark Mode */
+  body.dark-mode .badge {
+    background-color: #0d2444;
+  }
+
+  body.dark-mode .badge.bg-success {
+    background-color: #0f5132 !important;
+  }
+
+  body.dark-mode .alert-warning {
+    background-color: #332701;
+    border-color: #674d01;
+    color: #ffd862;
+  }
+
+  body.dark-mode .alert-danger {
+    background-color: #2c0b0e;
+    border-color: #58151c;
+    color: #ff8085;
+  }
+
+  body.dark-mode .alert-info {
+    background-color: #032830;
+    border-color: #055160;
+    color: #6edff6;
+  }
+
+  /* Modal Dark Mode */
+  body.dark-mode .modal-content {
+    background-color: #051529;
+    border-color: #172a45;
+  }
+
+  body.dark-mode .modal-header {
+    border-color: #172a45;
+  }
+
+  body.dark-mode .modal-footer {
+    border-color: #172a45;
+  }
+
+  /* Pagination Dark Mode */
+  body.dark-mode .pagination .page-link {
+    background-color: #051529;
+    border-color: #172a45;
+    color: #3b82f6;
+  }
+
+  body.dark-mode .pagination .page-item.active .page-link {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
+  }
+
+  body.dark-mode .pagination .page-item.disabled .page-link {
+    background-color: #051529;
+    border-color: #172a45;
+    color: #8896b3;
+  }
+
+  /* List Groups Dark Mode */
+  body.dark-mode .list-group-item {
+    background-color: #051529;
+    border-color: #172a45;
+    color: #e1e7ef;
+  }
+
+  /* Override bootstrap striping in dark mode */
+  body.dark-mode .table-striped > tbody > tr:nth-of-type(odd) > * {
+    --bs-table-accent-bg: #0a1e30;
+  }
+
+  /* Custom ticket selections in dark mode */
+  body.dark-mode #ticket-list .list-group-item.selected-ticket-item {
+    background-color: #0d2444 !important;
+    color: #26348d !important; /* Changed from #3b82f6 to #26348d */
+    border-left: 4px solid #26348d; /* Changed from #3b82f6 to #26348d */
+  }
+
+  /* Override text-secondary in dark mode */
+  body.dark-mode .text-secondary {
+    color: #a8b3cf !important;
+  }
+
+  body.dark-mode .text-muted {
+    color: #8896b3 !important;
+  }
+
+  /* Network Availability specific dark mode colors */
+  body.dark-mode .outage-summary-table th,
+  body.dark-mode .network-availability-table th {
+    background-color: #0d2444;
+  }
+
+  /* Loading overlays in dark mode */
+  body.dark-mode #ticket-loading-overlay,
+  body.dark-mode #outage-summary-loading-overlay,
+  body.dark-mode #ticket-modal-loading-overlay,
+  body.dark-mode #network-availability-loading-overlay {
+    background-color: rgba(3, 14, 33, 0.7);
+  }
+
+  /* Help Section Special Card Treatment */
+  .help-card {
+    background-color: rgba(248, 249, 250, 0.9) !important;
+    transition: background-color 0.3s ease;
+  }
+
+  /* Fix for help section cards in dark mode */
+  body.dark-mode .help-card {
+    background-color: rgba(10, 30, 48, 0.8) !important;
+    border-color: #172a45;
+    color: #e1e7ef;
+  }
+
+  /* Transitions for smoother dark/light mode switching */
+  .card,
+  .modal-content,
+  .list-group-item,
+  .table,
+  .table td,
+  .form-control,
+  .btn,
+  .alert,
+  .badge,
+  .pagination .page-link {
+    transition: background-color 0.3s ease, color 0.3s ease,
+      border-color 0.3s ease;
+  }
+
+  /* TARGETED STYLING APPROACH - Specific elements with dark blue */
+
+  /* Sidebar active links - already dark blue */
+
+  /* Specific buttons that should be dark blue */
+  #refresh-all-data-btn {
+    background-color: #26348d !important;
+    border-color: #26348d !important;
+    color: #ffffff !important;
+  }
+
+  /* Spreadsheet name badge - keep dark blue */
+  #spreadsheet-name-display.badge {
+    background-color: #26348d !important;
+    color: #ffffff !important;
+  }
+
+  /* Pagination active links */
+  .pagination .page-item.active .page-link {
+    background-color: #26348d !important;
+    border-color: #26348d !important;
+  }
+
+  /* Add/create buttons that should be dark blue */
+  .btn-add-record,
+  .btn-create-item {
+    background-color: #26348d !important;
+    border-color: #26348d !important;
+    color: #ffffff !important;
+  }
+
+  /* Keep dark blue in dark mode too */
+  body.dark-mode #spreadsheet-name-display.badge {
+    background-color: #26348d !important;
+    color: #ffffff !important;
+  }
+
+  /* Exception for "Open in Sheets" button - keep it Bootstrap green but as solid button */
+  #open-in-sheets-btn {
+    background-color: #0f5132 !important; /* Darker green */
+    border-color: #0f5132 !important;
+    color: #ffffff !important;
+  }
+
+  #open-in-sheets-btn:hover {
+    background-color: #0b3e26 !important; /* Even darker on hover */
+    border-color: #0a3622 !important;
+    color: #ffffff !important;
+  }
+</style>

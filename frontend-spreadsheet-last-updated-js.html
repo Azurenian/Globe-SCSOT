@@ -1,0 +1,31 @@
+<!-- Spreadsheet Last Updated Display Logic -->
+<script>
+  (function () {
+    function setSpreadsheetLastUpdated() {
+      var lastUpdatedSpan = document.getElementById("spreadsheet-last-updated");
+      if (!lastUpdatedSpan) return;
+      google.script.run
+        .withSuccessHandler(function (isoString) {
+          if (isoString) {
+            // Format to a readable string (e.g., May 22, 2025, 14:30)
+            var d = new Date(isoString);
+            var options = {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            };
+            lastUpdatedSpan.textContent =
+              "Last Updated: " + d.toLocaleString(undefined, options);
+            lastUpdatedSpan.classList.remove("text-danger");
+          } else {
+            lastUpdatedSpan.textContent = "Last Updated: Unknown";
+            lastUpdatedSpan.classList.add("text-danger");
+          }
+        })
+        .getCurrentSpreadsheetLastUpdated();
+    }
+    document.addEventListener("DOMContentLoaded", setSpreadsheetLastUpdated);
+  })();
+</script>
