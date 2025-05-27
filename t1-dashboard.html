@@ -52,7 +52,20 @@
     <div class="col-md-6">
       <div class="card border-0 rounded-0 h-100">
         <div class="card-body">
-          <h6 class="card-title mb-2">Outage Summary</h6>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-exclamation-triangle text-warning me-2"></i>Outage
+              Summary
+            </h5>
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              id="exportOutageSummaryBtn"
+              title="Export Outage Summary"
+            >
+              <i class="bi bi-download me-1"></i>Export
+            </button>
+          </div>
           <div id="outage-summary-table-container">
             <div
               class="d-flex mb-2 gap-2 align-items-center justify-content-between"
@@ -255,7 +268,20 @@
     <div class="col-12">
       <div class="card border-0 rounded-0 mt-3">
         <div class="card-body">
-          <h6 class="card-title mb-2">Network Availability</h6>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-activity text-success me-2"></i>Network
+              Availability
+            </h5>
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              id="exportNetworkAvailabilityBtn"
+              title="Export Network Availability"
+            >
+              <i class="bi bi-download me-1"></i>Export
+            </button>
+          </div>
           <div id="network-availability-container">
             <div
               class="d-flex mb-2 gap-2 align-items-center justify-content-between"
@@ -341,3 +367,7 @@
 </div>
 <?!= include('frontend-open-in-sheets-js'); ?>
 <?!= include('frontend-spreadsheet-name-js'); ?>
+<!-- Include Export Modal -->
+<?!= include('t2-export'); ?>
+<!-- Include Export Frontend JS -->
+<?!= include('frontend-export-js'); ?>

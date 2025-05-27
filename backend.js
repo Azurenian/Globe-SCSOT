@@ -685,3 +685,430 @@ function addTicket(ticketId) {
   }
 }
 
+// ==========================================
+// TIER 3: Export Functions
+// ==========================================
+
+/**
+ * Exports Outage Summary data in specified format
+ * @param {Object} params - Export parameters
+ * @returns {Object} { success: boolean, data: string, filename: string, mimeType: string, error: string }
+ */
+function exportOutageSummary(params) {
+  try {
+    const {
+      format,
+      filename = 'outage-summary',
+      includeRFO = true,
+      includeCableSystems = true,
+      includeTotals = false,
+      searchFilter = '',
+      title = 'Outage Summary Report',
+      includeDate = true
+    } = params;
+
+    // Get outage summary data
+    const summaryData = getOutageSummaryTable();
+    if (summaryData.error) {
+      return { success: false, error: summaryData.error };
+    }
+
+    let { cableSystems, rfoTypes, counts } = summaryData;
+    
+    // Apply search filter
+    if (searchFilter && searchFilter.trim() !== '') {
+      rfoTypes = rfoTypes.filter(rfo => 
+        rfo.toLowerCase().includes(searchFilter.trim().toLowerCase())
+      );
+    }
+
+    if (format === 'csv') {
+      return exportOutageSummaryCSV(cableSystems, rfoTypes, counts, {
+        filename,
+        includeRFO,
+        includeCableSystems,
+        includeTotals,
+        title,
+        includeDate
+      });
+    } else if (format === 'pdf') {
+      return exportOutageSummaryPDF(cableSystems, rfoTypes, counts, {
+        filename,
+        includeRFO,
+        includeCableSystems,
+        includeTotals,
+        title,
+        includeDate
+      });
+    } else {
+      return { success: false, error: 'Invalid export format specified.' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message || 'Export failed.' };
+  }
+}
+
+/**
+ * Exports Network Availability data in specified format
+ * @param {Object} params - Export parameters
+ * @returns {Object} { success: boolean, data: string, filename: string, mimeType: string, error: string }
+ */
+function exportNetworkAvailability(params) {
+  try {
+    const {
+      format,
+      filename = 'network-availability',
+      cableSystem = '',
+      segment = '',
+      yearStart = '',
+      yearEnd = '',
+      includeMonthHeaders = true,
+      includeColorCoding = false,
+      includeAverages = false,
+      title = 'Network Availability Report',
+      includeDate = true
+    } = params;
+
+    // Get network availability data
+    const networkData = getNetworkAvailabilityData();
+    if (networkData.error) {
+      return { success: false, error: networkData.error };
+    }
+
+    let { cableSystems, segments, years, data } = networkData;
+    
+    // Apply filters
+    if (cableSystem) cableSystems = [cableSystem];
+    if (segment) segments = [segment];
+    if (yearStart || yearEnd) {
+      const startYear = yearStart ? parseInt(yearStart) : Math.min(...years);
+      const endYear = yearEnd ? parseInt(yearEnd) : Math.max(...years);
+      years = years.filter(year => year >= startYear && year <= endYear);
+    }
+
+    if (format === 'csv') {
+      return exportNetworkAvailabilityCSV(cableSystems, segments, years, data, {
+        filename,
+        includeMonthHeaders,
+        includeAverages,
+        title,
+        includeDate
+      });
+    } else if (format === 'pdf') {
+      return exportNetworkAvailabilityPDF(cableSystems, segments, years, data, {
+        filename,
+        includeMonthHeaders,
+        includeColorCoding,
+        includeAverages,
+        title,
+        includeDate
+      });
+    } else {
+      return { success: false, error: 'Invalid export format specified.' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message || 'Export failed.' };
+  }
+}
+
+/**
+ * Helper function to export Outage Summary as CSV
+ */
+function exportOutageSummaryCSV(cableSystems, rfoTypes, counts, options) {
+  const { filename, includeRFO, includeCableSystems, includeTotals, title, includeDate } = options;
+  
+  let csvContent = '';
+  
+  // Add metadata
+  if (includeDate) {
+    csvContent += `"Generated on","${new Date().toLocaleString()}"\n`;
+  }
+  csvContent += `"Report","${title}"\n\n`;
+  
+  // Build headers for the table
+  let headers = [];
+  if (includeRFO) headers.push('RFO');
+  if (includeCableSystems) {
+    cableSystems.forEach(cs => headers.push(cs));
+  }
+  if (includeTotals) headers.push('Total');
+  
+  // Add headers to CSV
+  csvContent += headers.map(h => `"${h}"`).join(',') + '\n';
+  
+  // Build data rows in table format
+  rfoTypes.forEach(rfo => {
+    let row = [];
+    if (includeRFO) row.push(`"${rfo}"`);
+    
+    let rowTotal = 0;
+    if (includeCableSystems) {
+      cableSystems.forEach(cs => {
+        const value = (counts[rfo] && counts[rfo][cs]) ? counts[rfo][cs] : 0;
+        row.push(value);
+        rowTotal += value;
+      });
+    }
+    
+    if (includeTotals) row.push(rowTotal);
+    csvContent += row.join(',') + '\n';
+  });
+  
+  // Convert to base64
+  const blob = Utilities.newBlob(csvContent, 'text/csv', `${filename}.csv`);
+  const base64Data = Utilities.base64Encode(blob.getBytes());
+  
+  return {
+    success: true,
+    data: base64Data,
+    filename: `${filename}.csv`,
+    mimeType: 'text/csv'
+  };
+}
+
+/**
+ * Helper function to export Network Availability as CSV
+ */
+function exportNetworkAvailabilityCSV(cableSystems, segments, years, data, options) {
+  const { filename, includeMonthHeaders, includeAverages, title, includeDate } = options;
+  
+  let csvContent = '';
+  
+  // Add metadata
+  if (includeDate) {
+    csvContent += `"Generated on","${new Date().toLocaleString()}"\n`;
+  }
+  csvContent += `"Report","${title}"\n\n`;
+  
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  // Create a unified table format for all cable systems and segments
+  let headers = ['Cable System', 'Segment', 'Year'];
+  if (includeMonthHeaders) {
+    months.forEach(month => headers.push(month));
+  }
+  if (includeAverages) headers.push('Average');
+  
+  // Add headers to CSV
+  csvContent += headers.map(h => `"${h}"`).join(',') + '\n';
+  
+  // Build data rows in unified table format
+  cableSystems.forEach(cs => {
+    segments.forEach(seg => {
+      years.forEach(year => {
+        let row = [`"${cs}"`, `"${seg}"`, year];
+        let yearSum = 0;
+        let monthCount = 0;
+        
+        if (includeMonthHeaders) {
+          for (let m = 0; m < 12; m++) {
+            const value = data[cs]?.[seg]?.[year]?.[m];
+            if (typeof value === 'number') {
+              row.push(value.toFixed(2));
+              yearSum += value;
+              monthCount++;
+            } else {
+              row.push('---');
+            }
+          }
+        }
+        
+        if (includeAverages && monthCount > 0) {
+          row.push((yearSum / monthCount).toFixed(2));
+        } else if (includeAverages) {
+          row.push('---');
+        }
+        
+        csvContent += row.join(',') + '\n';
+      });
+    });
+  });
+  
+  // Convert to base64
+  const blob = Utilities.newBlob(csvContent, 'text/csv', `${filename}.csv`);
+  const base64Data = Utilities.base64Encode(blob.getBytes());
+  
+  return {
+    success: true,
+    data: base64Data,
+    filename: `${filename}.csv`,
+    mimeType: 'text/csv'
+  };
+}
+
+/**
+ * Helper function to export Outage Summary as PDF (simplified HTML-to-PDF approach)
+ */
+function exportOutageSummaryPDF(cableSystems, rfoTypes, counts, options) {
+  const { filename, includeRFO, includeCableSystems, includeTotals, title, includeDate } = options;
+  
+  // Create HTML content for PDF
+  let htmlContent = `
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { color: #333; text-align: center; }
+          .metadata { text-align: center; margin-bottom: 20px; color: #666; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+          th { background-color: #f2f2f2; font-weight: bold; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+        </style>
+      </head>
+      <body>
+        <h1>${title}</h1>
+  `;
+  
+  if (includeDate) {
+    htmlContent += `<div class="metadata">Generated on: ${new Date().toLocaleString()}</div>`;
+  }
+  
+  htmlContent += '<table><thead><tr>';
+  
+  // Build headers
+  if (includeRFO) htmlContent += '<th>RFO</th>';
+  if (includeCableSystems) {
+    cableSystems.forEach(cs => htmlContent += `<th>${cs}</th>`);
+  }
+  if (includeTotals) htmlContent += '<th>Total</th>';
+  
+  htmlContent += '</tr></thead><tbody>';
+  
+  // Build data rows
+  rfoTypes.forEach(rfo => {
+    htmlContent += '<tr>';
+    if (includeRFO) htmlContent += `<td>${rfo}</td>`;
+    
+    let rowTotal = 0;
+    if (includeCableSystems) {
+      cableSystems.forEach(cs => {
+        const value = (counts[rfo] && counts[rfo][cs]) ? counts[rfo][cs] : 0;
+        htmlContent += `<td>${value}</td>`;
+        rowTotal += value;
+      });
+    }
+    
+    if (includeTotals) htmlContent += `<td>${rowTotal}</td>`;
+    htmlContent += '</tr>';
+  });
+  
+  htmlContent += '</tbody></table></body></html>';
+  
+  // Convert HTML to PDF using DriveApp (simplified approach)
+  const blob = Utilities.newBlob(htmlContent, 'text/html', 'temp.html');
+  const pdfBlob = blob.getAs('application/pdf');
+  const base64Data = Utilities.base64Encode(pdfBlob.getBytes());
+  
+  return {
+    success: true,
+    data: base64Data,
+    filename: `${filename}.pdf`,
+    mimeType: 'application/pdf'
+  };
+}
+
+/**
+ * Helper function to export Network Availability as PDF
+ */
+function exportNetworkAvailabilityPDF(cableSystems, segments, years, data, options) {
+  const { filename, includeMonthHeaders, includeColorCoding, includeAverages, title, includeDate } = options;
+  
+  // Create HTML content for PDF
+  let htmlContent = `
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { color: #333; text-align: center; }
+          h2 { color: #555; margin-top: 30px; }
+          .metadata { text-align: center; margin-bottom: 20px; color: #666; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; page-break-inside: avoid; }
+          th, td { border: 1px solid #ddd; padding: 6px; text-align: center; font-size: 12px; }
+          th { background-color: #f2f2f2; font-weight: bold; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          .na-darkblue { background-color: #26348d !important; color: white; }
+          .na-lightgreen { background-color: #b9e7c5 !important; }
+          .na-yellow { background-color: #ffe066 !important; }
+          .na-orange { background-color: #fd7e14 !important; color: white; }
+          .na-red { background-color: #dc3545 !important; color: white; }
+        </style>
+      </head>
+      <body>
+        <h1>${title}</h1>
+  `;
+  
+  if (includeDate) {
+    htmlContent += `<div class="metadata">Generated on: ${new Date().toLocaleString()}</div>`;
+  }
+  
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  // Export data for each cable system and segment combination
+  cableSystems.forEach(cs => {
+    segments.forEach(seg => {
+      htmlContent += `<h2>${cs} - ${seg}</h2>`;
+      htmlContent += '<table><thead><tr><th>Year</th>';
+      
+      if (includeMonthHeaders) {
+        months.forEach(month => htmlContent += `<th>${month}</th>`);
+      }
+      if (includeAverages) htmlContent += '<th>Average</th>';
+      
+      htmlContent += '</tr></thead><tbody>';
+      
+      // Build data rows
+      years.forEach(year => {
+        htmlContent += '<tr><td>' + year + '</td>';
+        let yearSum = 0;
+        let monthCount = 0;
+        
+        if (includeMonthHeaders) {
+          for (let m = 0; m < 12; m++) {
+            const value = data[cs]?.[seg]?.[year]?.[m];
+            if (typeof value === 'number') {
+              let cellClass = '';
+              if (includeColorCoding) {
+                if (value >= 90) cellClass = 'na-darkblue';
+                else if (value >= 70) cellClass = 'na-lightgreen';
+                else if (value >= 40) cellClass = 'na-yellow';
+                else if (value >= 20) cellClass = 'na-orange';
+                else cellClass = 'na-red';
+              }
+              htmlContent += `<td class="${cellClass}">${value.toFixed(2)}%</td>`;
+              yearSum += value;
+              monthCount++;
+            } else {
+              htmlContent += '<td>---</td>';
+            }
+          }
+        }
+        
+        if (includeAverages && monthCount > 0) {
+          htmlContent += `<td>${(yearSum / monthCount).toFixed(2)}%</td>`;
+        } else if (includeAverages) {
+          htmlContent += '<td>---</td>';
+        }
+        
+        htmlContent += '</tr>';
+      });
+      
+      htmlContent += '</tbody></table>';
+    });
+  });
+  
+  htmlContent += '</body></html>';
+  
+  // Convert HTML to PDF
+  const blob = Utilities.newBlob(htmlContent, 'text/html', 'temp.html');
+  const pdfBlob = blob.getAs('application/pdf');
+  const base64Data = Utilities.base64Encode(pdfBlob.getBytes());
+  
+  return {
+    success: true,
+    data: base64Data,
+    filename: `${filename}.pdf`,
+    mimeType: 'application/pdf'
+  };
+}
+

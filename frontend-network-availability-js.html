@@ -160,6 +160,11 @@
     }
 
     function renderTable() {
+      // Get current date for comparison
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth(); // 0-based (0 = January, 11 = December)
+
       const months = [
         "Jan",
         "Feb",
@@ -188,24 +193,37 @@
       yearsToDisplay.forEach((year) => {
         html += `<tr><td>${year}</td>`;
         for (let m = 0; m < 12; m++) {
-          let percent = data[currentCableSystem]?.[currentSegment]?.[year]?.[m];
-          if (typeof percent !== "number") percent = 100;
-          let colorClass = "";
-          let textClass = "";
-          if (percent >= 90)
-            colorClass = "na-darkblue"; // Changed from na-green to na-darkblue
-          else if (percent >= 70) colorClass = "na-lightgreen";
-          else if (percent >= 40) colorClass = "na-yellow";
-          else if (percent >= 20) {
-            colorClass = "na-orange";
-            textClass = "text-white";
+          // Check if this month/year is in the future
+          const isFutureDate =
+            parseInt(year) > currentYear ||
+            (parseInt(year) === currentYear && m > currentMonth);
+
+          if (isFutureDate) {
+            // For future dates, display "---" with a neutral background
+            html += `<td class="text-secondary">---</td>`;
           } else {
-            colorClass = "na-red";
-            textClass = "text-white";
+            // For past or current dates, display the percentage as before
+            let percent =
+              data[currentCableSystem]?.[currentSegment]?.[year]?.[m];
+            if (typeof percent !== "number") percent = 100;
+            let colorClass = "";
+            let textClass = "";
+            if (percent >= 90)
+              colorClass =
+                "na-darkblue"; // Changed from na-green to na-darkblue
+            else if (percent >= 70) colorClass = "na-lightgreen";
+            else if (percent >= 40) colorClass = "na-yellow";
+            else if (percent >= 20) {
+              colorClass = "na-orange";
+              textClass = "text-white";
+            } else {
+              colorClass = "na-red";
+              textClass = "text-white";
+            }
+            html += `<td class="${colorClass} ${textClass}">${percent.toFixed(
+              2
+            )}%</td>`;
           }
-          html += `<td class="${colorClass} ${textClass}">${percent.toFixed(
-            2
-          )}%</td>`;
         }
         html += "</tr>";
       });

@@ -1,0 +1,309 @@
+<!-- Export Functionality Frontend Logic -->
+<script>
+  (function () {
+    let exportModalInstances = {};
+
+    // Initialize export modals
+    document.addEventListener("DOMContentLoaded", function () {
+      // Initialize modal instances
+      const outageModal = document.getElementById("exportOutageSummaryModal");
+      const networkModal = document.getElementById(
+        "exportNetworkAvailabilityModal"
+      );
+
+      if (outageModal) {
+        exportModalInstances.outage = new bootstrap.Modal(outageModal);
+      }
+      if (networkModal) {
+        exportModalInstances.network = new bootstrap.Modal(networkModal);
+      }
+
+      // Load dropdown options for network availability export
+      loadExportDropdownOptions();
+    });
+
+    // Load dropdown options for network export modal
+    function loadExportDropdownOptions() {
+      google.script.run
+        .withSuccessHandler(function (data) {
+          if (data.error) return;
+
+          // Populate cable systems
+          const csSelect = document.getElementById("networkExportCableSystem");
+          if (csSelect && data.cableSystems) {
+            data.cableSystems.forEach((cs) => {
+              const option = document.createElement("option");
+              option.value = cs;
+              option.textContent = cs;
+              csSelect.appendChild(option);
+            });
+          }
+
+          // Populate segments
+          const segSelect = document.getElementById("networkExportSegment");
+          if (segSelect && data.segments) {
+            data.segments.forEach((seg) => {
+              const option = document.createElement("option");
+              option.value = seg;
+              option.textContent = seg;
+              segSelect.appendChild(option);
+            });
+          }
+
+          // Populate years
+          const yearStartSelect = document.getElementById(
+            "networkExportYearStart"
+          );
+          const yearEndSelect = document.getElementById("networkExportYearEnd");
+          if (yearStartSelect && yearEndSelect && data.years) {
+            data.years.forEach((year) => {
+              const startOption = document.createElement("option");
+              startOption.value = year;
+              startOption.textContent = year;
+              yearStartSelect.appendChild(startOption);
+
+              const endOption = document.createElement("option");
+              endOption.value = year;
+              endOption.textContent = year;
+              yearEndSelect.appendChild(endOption);
+            });
+          }
+        })
+        .getNetworkAvailabilityData();
+    }
+
+    // Export button event handlers
+    document.addEventListener("click", function (e) {
+      // Outage Summary Export Button
+      if (e.target.closest("#exportOutageSummaryBtn")) {
+        e.preventDefault();
+        if (exportModalInstances.outage) {
+          exportModalInstances.outage.show();
+        }
+      }
+
+      // Network Availability Export Button
+      if (e.target.closest("#exportNetworkAvailabilityBtn")) {
+        e.preventDefault();
+        if (exportModalInstances.network) {
+          exportModalInstances.network.show();
+        }
+      }
+
+      // Confirm Outage Summary Export
+      if (e.target.closest("#confirmExportOutageBtn")) {
+        e.preventDefault();
+        handleOutageSummaryExport();
+      }
+
+      // Confirm Network Availability Export
+      if (e.target.closest("#confirmExportNetworkBtn")) {
+        e.preventDefault();
+        handleNetworkAvailabilityExport();
+      }
+    });
+
+    // Handle Outage Summary Export
+    function handleOutageSummaryExport() {
+      const btn = document.getElementById("confirmExportOutageBtn");
+      const btnText = btn.querySelector(".export-btn-text");
+      const btnSpinner = btn.querySelector(".export-btn-spinner");
+
+      // Get form values
+      const format = document.getElementById("outageExportFormat").value;
+      const filename =
+        document.getElementById("outageExportFilename").value ||
+        "outage-summary";
+      const includeRFO = document.getElementById("outageIncludeRFO").checked;
+      const includeCableSystems = document.getElementById(
+        "outageIncludeCableSystems"
+      ).checked;
+      const includeTotals = document.getElementById(
+        "outageIncludeTotals"
+      ).checked;
+      const searchFilter = document.getElementById("outageExportSearch").value;
+      const title =
+        document.getElementById("outageExportTitle").value ||
+        "Outage Summary Report";
+      const includeDate = document.getElementById("outageIncludeDate").checked;
+
+      // Validation
+      if (!format) {
+        showExportError("Please select an export format.");
+        return;
+      }
+
+      // Show loading state
+      btn.disabled = true;
+      btnText.classList.add("d-none");
+      btnSpinner.classList.remove("d-none");
+
+      const exportParams = {
+        format,
+        filename,
+        includeRFO,
+        includeCableSystems,
+        includeTotals,
+        searchFilter,
+        title,
+        includeDate,
+      };
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          btn.disabled = false;
+          btnText.classList.remove("d-none");
+          btnSpinner.classList.add("d-none");
+
+          if (result.success) {
+            // Create download link
+            const link = document.createElement("a");
+            link.href = "data:" + result.mimeType + ";base64," + result.data;
+            link.download = result.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            exportModalInstances.outage.hide();
+            showExportSuccess("Outage Summary exported successfully!");
+          } else {
+            showExportError(result.error || "Export failed.");
+          }
+        })
+        .withFailureHandler(function (error) {
+          btn.disabled = false;
+          btnText.classList.remove("d-none");
+          btnSpinner.classList.add("d-none");
+          showExportError("Export failed: " + error.message);
+        })
+        .exportOutageSummary(exportParams);
+    }
+
+    // Handle Network Availability Export
+    function handleNetworkAvailabilityExport() {
+      const btn = document.getElementById("confirmExportNetworkBtn");
+      const btnText = btn.querySelector(".export-btn-text");
+      const btnSpinner = btn.querySelector(".export-btn-spinner");
+
+      // Get form values
+      const format = document.getElementById("networkExportFormat").value;
+      const filename =
+        document.getElementById("networkExportFilename").value ||
+        "network-availability";
+      const cableSystem = document.getElementById(
+        "networkExportCableSystem"
+      ).value;
+      const segment = document.getElementById("networkExportSegment").value;
+      const yearStart = document.getElementById("networkExportYearStart").value;
+      const yearEnd = document.getElementById("networkExportYearEnd").value;
+      const includeMonthHeaders = document.getElementById(
+        "networkIncludeMonthHeaders"
+      ).checked;
+      const includeColorCoding = document.getElementById(
+        "networkIncludeColorCoding"
+      ).checked;
+      const includeAverages = document.getElementById(
+        "networkIncludeAverages"
+      ).checked;
+      const title =
+        document.getElementById("networkExportTitle").value ||
+        "Network Availability Report";
+      const includeDate = document.getElementById("networkIncludeDate").checked;
+
+      // Validation
+      if (!format) {
+        showExportError("Please select an export format.");
+        return;
+      }
+
+      // Show loading state
+      btn.disabled = true;
+      btnText.classList.add("d-none");
+      btnSpinner.classList.remove("d-none");
+
+      const exportParams = {
+        format,
+        filename,
+        cableSystem,
+        segment,
+        yearStart,
+        yearEnd,
+        includeMonthHeaders,
+        includeColorCoding,
+        includeAverages,
+        title,
+        includeDate,
+      };
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          btn.disabled = false;
+          btnText.classList.remove("d-none");
+          btnSpinner.classList.add("d-none");
+
+          if (result.success) {
+            // Create download link
+            const link = document.createElement("a");
+            link.href = "data:" + result.mimeType + ";base64," + result.data;
+            link.download = result.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            exportModalInstances.network.hide();
+            showExportSuccess("Network Availability exported successfully!");
+          } else {
+            showExportError(result.error || "Export failed.");
+          }
+        })
+        .withFailureHandler(function (error) {
+          btn.disabled = false;
+          btnText.classList.remove("d-none");
+          btnSpinner.classList.add("d-none");
+          showExportError("Export failed: " + error.message);
+        })
+        .exportNetworkAvailability(exportParams);
+    }
+
+    // Utility functions for user feedback
+    function showExportSuccess(message) {
+      // Create a simple toast-like notification
+      const toast = document.createElement("div");
+      toast.className =
+        "alert alert-success alert-dismissible fade show position-fixed export-toast";
+      toast.style.cssText =
+        "top: 20px; right: 20px; z-index: 9999; max-width: 350px;";
+      toast.innerHTML = `
+        <i class="bi bi-check-circle me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 5000);
+    }
+
+    function showExportError(message) {
+      // Create a simple toast-like notification
+      const toast = document.createElement("div");
+      toast.className =
+        "alert alert-danger alert-dismissible fade show position-fixed export-toast";
+      toast.style.cssText =
+        "top: 20px; right: 20px; z-index: 9999; max-width: 350px;";
+      toast.innerHTML = `
+        <i class="bi bi-exclamation-triangle me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 8000);
+    }
+  })();
+</script>

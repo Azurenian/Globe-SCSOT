@@ -1,0 +1,357 @@
+<!-- Export Modal for Outage Summary -->
+<div
+  class="modal fade"
+  id="exportOutageSummaryModal"
+  tabindex="-1"
+  aria-labelledby="exportOutageSummaryModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exportOutageSummaryModalLabel">
+          <i class="bi bi-download me-2"></i>Export Outage Summary
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="exportOutageSummaryForm">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="outageExportFormat" class="form-label"
+                  >Export Format <span class="text-danger">*</span></label
+                >
+                <select class="form-select" id="outageExportFormat" required>
+                  <option value="">Select format...</option>
+                  <option value="csv">CSV</option>
+                  <option value="pdf">PDF</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="outageExportFilename" class="form-label"
+                  >Filename</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="outageExportFilename"
+                  placeholder="outage-summary"
+                  value="outage-summary"
+                />
+                <div class="form-text">
+                  Extension will be added automatically
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Include Columns</label>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="outageIncludeRFO"
+                checked
+              />
+              <label class="form-check-label" for="outageIncludeRFO"
+                >RFO Types</label
+              >
+            </div>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="outageIncludeCableSystems"
+                checked
+              />
+              <label class="form-check-label" for="outageIncludeCableSystems"
+                >Cable Systems</label
+              >
+            </div>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="outageIncludeTotals"
+              />
+              <label class="form-check-label" for="outageIncludeTotals"
+                >Row Totals</label
+              >
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="outageExportSearch" class="form-label"
+              >Filter RFO (optional)</label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="outageExportSearch"
+              placeholder="Enter RFO filter..."
+            />
+            <div class="form-text">Leave empty to export all RFO types</div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="outageExportTitle" class="form-label"
+                  >Report Title</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="outageExportTitle"
+                  value="Outage Summary Report"
+                />
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Include Metadata</label>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="outageIncludeDate"
+                    checked
+                  />
+                  <label class="form-check-label" for="outageIncludeDate"
+                    >Export Date</label
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="confirmExportOutageBtn"
+        >
+          <span class="export-btn-text">
+            <i class="bi bi-download me-1"></i>Export
+          </span>
+          <span class="export-btn-spinner d-none">
+            <span
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+              aria-hidden="true"
+            ></span
+            >Exporting...
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal for Network Availability -->
+<div
+  class="modal fade"
+  id="exportNetworkAvailabilityModal"
+  tabindex="-1"
+  aria-labelledby="exportNetworkAvailabilityModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exportNetworkAvailabilityModalLabel">
+          <i class="bi bi-download me-2"></i>Export Network Availability
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <form id="exportNetworkAvailabilityForm">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="networkExportFormat" class="form-label"
+                  >Export Format <span class="text-danger">*</span></label
+                >
+                <select class="form-select" id="networkExportFormat" required>
+                  <option value="">Select format...</option>
+                  <option value="csv">CSV</option>
+                  <option value="pdf">PDF</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="networkExportFilename" class="form-label"
+                  >Filename</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="networkExportFilename"
+                  placeholder="network-availability"
+                  value="network-availability"
+                />
+                <div class="form-text">
+                  Extension will be added automatically
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="networkExportCableSystem" class="form-label"
+                  >Cable System</label
+                >
+                <select class="form-select" id="networkExportCableSystem">
+                  <option value="">All Cable Systems</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="networkExportSegment" class="form-label"
+                  >Segment</label
+                >
+                <select class="form-select" id="networkExportSegment">
+                  <option value="">All Segments</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="networkExportYearStart" class="form-label"
+                  >Start Year</label
+                >
+                <select class="form-select" id="networkExportYearStart">
+                  <option value="">All Years</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="networkExportYearEnd" class="form-label"
+                  >End Year</label
+                >
+                <select class="form-select" id="networkExportYearEnd">
+                  <option value="">All Years</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Include Options</label>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="networkIncludeMonthHeaders"
+                checked
+              />
+              <label class="form-check-label" for="networkIncludeMonthHeaders"
+                >Month Headers</label
+              >
+            </div>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="networkIncludeColorCoding"
+              />
+              <label class="form-check-label" for="networkIncludeColorCoding"
+                >Color Coding (PDF only)</label
+              >
+            </div>
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="networkIncludeAverages"
+              />
+              <label class="form-check-label" for="networkIncludeAverages"
+                >Yearly Averages</label
+              >
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="networkExportTitle" class="form-label"
+                  >Report Title</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="networkExportTitle"
+                  value="Network Availability Report"
+                />
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Include Metadata</label>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="networkIncludeDate"
+                    checked
+                  />
+                  <label class="form-check-label" for="networkIncludeDate"
+                    >Export Date</label
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="confirmExportNetworkBtn"
+        >
+          <span class="export-btn-text">
+            <i class="bi bi-download me-1"></i>Export
+          </span>
+          <span class="export-btn-spinner d-none">
+            <span
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+              aria-hidden="true"
+            ></span
+            >Exporting...
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
