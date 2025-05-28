@@ -10,12 +10,20 @@
       const networkModal = document.getElementById(
         "exportNetworkAvailabilityModal"
       );
+      const majorIncidentsModal = document.getElementById(
+        "exportMajorIncidentsModal"
+      );
 
       if (outageModal) {
         exportModalInstances.outage = new bootstrap.Modal(outageModal);
       }
       if (networkModal) {
         exportModalInstances.network = new bootstrap.Modal(networkModal);
+      }
+      if (majorIncidentsModal) {
+        exportModalInstances.majorIncidents = new bootstrap.Modal(
+          majorIncidentsModal
+        );
       }
 
       // Load dropdown options for network availability export
@@ -90,6 +98,14 @@
         }
       }
 
+      // Major Incidents Export Button
+      if (e.target.closest("#exportMajorIncidentsBtn")) {
+        e.preventDefault();
+        if (exportModalInstances.majorIncidents) {
+          exportModalInstances.majorIncidents.show();
+        }
+      }
+
       // Confirm Outage Summary Export
       if (e.target.closest("#confirmExportOutageBtn")) {
         e.preventDefault();
@@ -100,6 +116,12 @@
       if (e.target.closest("#confirmExportNetworkBtn")) {
         e.preventDefault();
         handleNetworkAvailabilityExport();
+      }
+
+      // Confirm Major Incidents Export
+      if (e.target.closest("#confirmExportMajorIncidentsBtn")) {
+        e.preventDefault();
+        handleMajorIncidentsExport();
       }
     });
 
@@ -263,6 +285,82 @@
           showExportError("Export failed: " + error.message);
         })
         .exportNetworkAvailability(exportParams);
+    }
+
+    // Handle Major Incidents Export
+    function handleMajorIncidentsExport() {
+      const btn = document.getElementById("confirmExportMajorIncidentsBtn");
+      const btnText = btn.querySelector(".export-btn-text");
+      const btnSpinner = btn.querySelector(".export-btn-spinner");
+
+      // Get form values
+      const format = document.getElementById(
+        "majorIncidentsExportFormat"
+      ).value;
+      const filename =
+        document.getElementById("majorIncidentsExportFilename").value ||
+        "major-incidents";
+      const includeHeaders = document.getElementById(
+        "majorIncidentsIncludeHeaders"
+      ).checked;
+      const searchFilter = document.getElementById(
+        "majorIncidentsExportSearch"
+      ).value;
+      const title =
+        document.getElementById("majorIncidentsExportTitle").value ||
+        "Major Incidents Report";
+      const includeDate = document.getElementById(
+        "majorIncidentsIncludeDate"
+      ).checked;
+
+      // Validation
+      if (!format) {
+        showExportError("Please select an export format.");
+        return;
+      }
+
+      // Show loading state
+      btn.disabled = true;
+      btnText.classList.add("d-none");
+      btnSpinner.classList.remove("d-none");
+
+      const exportParams = {
+        format,
+        filename,
+        includeHeaders,
+        searchFilter,
+        title,
+        includeDate,
+      };
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          btn.disabled = false;
+          btnText.classList.remove("d-none");
+          btnSpinner.classList.add("d-none");
+
+          if (result.success) {
+            // Create download link
+            const link = document.createElement("a");
+            link.href = "data:" + result.mimeType + ";base64," + result.data;
+            link.download = result.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            exportModalInstances.majorIncidents.hide();
+            showExportSuccess("Major Incidents exported successfully!");
+          } else {
+            showExportError(result.error || "Export failed.");
+          }
+        })
+        .withFailureHandler(function (error) {
+          btn.disabled = false;
+          btnText.classList.remove("d-none");
+          btnSpinner.classList.add("d-none");
+          showExportError("Export failed: " + error.message);
+        })
+        .exportMajorIncidents(exportParams);
     }
 
     // Utility functions for user feedback

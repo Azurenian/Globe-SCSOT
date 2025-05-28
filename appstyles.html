@@ -671,4 +671,67 @@
       font-size: 0.9rem;
     }
   }
+
+  /* Major Incidents Table Custom Styles */
+  .major-incidents-table th,
+  .major-incidents-table td {
+    vertical-align: middle;
+  }
+  .major-incidents-table th {
+    background: #f0f4fa; /* Light mode header background */
+    font-weight: 600;
+    user-select: none;
+  }
+  .major-incidents-table tbody tr {
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+  }
+  /* Selected row styles with high specificity */
+  .major-incidents-table tbody tr.selected-major-row,
+  .major-incidents-table tbody tr.table-primary {
+    /* .table-primary is for compatibility/alternative */
+    background-color: #26348d !important;
+    color: #fff !important;
+  }
+  .major-incidents-table tbody tr.selected-major-row td,
+  .major-incidents-table tbody tr.table-primary td {
+    /* Ensures TD elements also get styled */
+    background-color: #26348d !important;
+    color: #fff !important;
+  }
+  .major-incidents-table tbody tr:hover:not(.selected-major-row) {
+    background-color: rgba(
+      38,
+      52,
+      141,
+      0.1
+    ) !important; /* Light hover for non-selected rows */
+  }
+
+  /* Dark mode styles for Major Incidents table */
+  body.dark-mode .major-incidents-table th {
+    background-color: #0d2444; /* Dark mode header background */
+  }
+  body.dark-mode .major-incidents-table tbody tr.selected-major-row,
+  body.dark-mode .major-incidents-table tbody tr.table-primary {
+    background-color: #26348d !important; /* Keep selection color consistent in dark mode */
+    color: #fff !important;
+  }
+  body.dark-mode .major-incidents-table tbody tr.selected-major-row td,
+  body.dark-mode .major-incidents-table tbody tr.table-primary td {
+    /* Ensures TD elements get styled in dark mode */
+    background-color: #26348d !important;
+    color: #fff !important;
+  }
+  body.dark-mode
+    .major-incidents-table
+    tbody
+    tr:hover:not(.selected-major-row) {
+    background-color: rgba(
+      38,
+      52,
+      141,
+      0.2
+    ) !important; /* Darker hover for non-selected rows in dark mode */
+  }
 </style>

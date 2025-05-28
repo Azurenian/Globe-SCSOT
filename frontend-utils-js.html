@@ -1,156 +1,85 @@
-<!-- Universal Refresh Function -->
+<!-- Universal Refresh Logic -->
 <script>
-  /**
-   * Refreshes all ticket and modal data on the page.
-   * Calls fetchTickets and fetchTicketDetails if available.
-   * @returns {void}
-   */
-  window.refreshAllData = function () {
-    if (typeof window.fetchTickets === "function") {
-      if (
-        window.currentSearch !== undefined &&
-        window.currentPage !== undefined &&
-        window.PAGE_SIZE !== undefined
-      ) {
-        window.fetchTickets(
-          window.currentSearch,
-          window.currentPage,
-          window.PAGE_SIZE
-        );
-      } else {
-        window.fetchTickets("", 1, 5);
+  (function () {
+    /**
+     * Universal refresh function - refreshes data from all tabs
+     * This function should be called by the "Refresh All Data" button
+     */
+    window.refreshAllData = function () {
+      // Cache invalidation on backend
+      google.script.run
+        .withSuccessHandler(function () {
+          // Now refresh all frontend components
+          if (typeof window.refreshTicketList === "function") {
+            try {
+              window.refreshTicketList();
+            } catch (e) {}
+          }
+          if (typeof window.refreshOutageSummaryTable === "function") {
+            try {
+              window.refreshOutageSummaryTable();
+            } catch (e) {}
+          }
+          if (typeof window.refreshNetworkAvailability === "function") {
+            try {
+              window.refreshNetworkAvailability();
+            } catch (e) {}
+          }
+          if (typeof window.refreshMajorIncidentsTable === "function") {
+            try {
+              window.refreshMajorIncidentsTable();
+            } catch (e) {}
+          }
+          // Optionally update last refresh time in UI
+          if (typeof updateLastRefreshTime === "function") {
+            updateLastRefreshTime();
+          }
+        })
+        .withFailureHandler(function (error) {
+          console.error("Failed to invalidate cache:", error);
+          alert("Failed to refresh data: " + error);
+        })
+        .invalidateAllSheetCaches();
+    };
+
+    // Attach universal refresh to button
+    document.addEventListener("DOMContentLoaded", function () {
+      const refreshBtn = document.getElementById("refresh-all-data-btn");
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", function () {
+          this.disabled = true;
+          window.refreshAllData();
+          setTimeout(() => {
+            this.disabled = false;
+          }, 1000);
+        });
+      }
+    });
+
+    // Optional: update last refresh time utility
+    function updateLastRefreshTime() {
+      const refreshTimeEl = document.getElementById("last-refresh-time");
+      if (refreshTimeEl) {
+        const now = new Date();
+        const options = {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        };
+        refreshTimeEl.textContent = now.toLocaleTimeString(undefined, options);
       }
     }
-    const modal = document.getElementById("ticketDetailsModal");
-    if (modal && modal.classList.contains("show")) {
-      if (
-        window.modalTicketId &&
-        window.modalCurrentPage &&
-        window.modalPageSize !== undefined &&
-        window.modalCurrentSearch !== undefined
-      ) {
-        window.fetchTicketDetails(
-          window.modalTicketId,
-          window.modalCurrentPage,
-          window.modalPageSize,
-          window.modalCurrentSearch
-        );
-      }
-    }
-    // Always refresh Outage Summary Table after ticket/modal refresh
-    if (typeof window.refreshOutageSummaryTable === "function") {
-      window.refreshOutageSummaryTable();
-    }
-    // Always refresh Network Availability after ticket/modal refresh
-    if (typeof window.refreshNetworkAvailability === "function") {
-      window.refreshNetworkAvailability();
-    }
-  };
 
-  /**
-   * Performs a full page refresh by loading the script URL in the top window
-   */
-  window.reLoad = function () {
-    // Show loading indicator
-    document.body.innerHTML =
-      '<div style="display: flex; justify-content: center; align-items: center; height: 100vh;"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><div class="ms-3">Refreshing page...</div></div>';
-
-    // Call server-side to get URL and reload
-    google.script.run
-      .withSuccessHandler(function (url) {
-        window.open(url, "_top");
-      })
-      .withFailureHandler(function (error) {
-        console.error("Failed to reload:", error);
-        alert("Failed to reload the page. Please refresh manually.");
-      })
-      .getScriptURL();
-  };
-
-  // Replace the existing performFullRefresh with the new reLoad function
-  window.performFullRefresh = window.reLoad;
-
-  document.addEventListener("DOMContentLoaded", function () {
-    var btn = document.getElementById("refresh-all-data-btn");
-    if (btn) {
-      // Add a context menu for refresh options
-      btn.addEventListener("contextmenu", function (e) {
-        e.preventDefault();
-        if (
-          confirm(
-            "Perform a full page refresh? This will reload the entire application."
-          )
-        ) {
-          window.reLoad(); // Use the new function
-        }
-        return false;
-      });
-
-      btn.addEventListener("click", function () {
-        btn.disabled = true;
-        var icon = btn.querySelector("i");
-        var origIconClass = icon.className;
-        btn.innerHTML =
-          '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Loading...';
-        // Invalidate backend cache before refreshing UI
-        google.script.run
-          .withSuccessHandler(function () {
-            Promise.resolve()
-              .then(() => {
-                if (typeof window.fetchTickets === "function") {
-                  if (
-                    window.currentSearch !== undefined &&
-                    window.currentPage !== undefined &&
-                    window.PAGE_SIZE !== undefined
-                  ) {
-                    window.fetchTickets(
-                      window.currentSearch,
-                      window.currentPage,
-                      window.PAGE_SIZE
-                    );
-                  } else {
-                    window.fetchTickets("", 1, 5);
-                  }
-                }
-              })
-              .then(() => {
-                const modal = document.getElementById("ticketDetailsModal");
-                if (modal && modal.classList.contains("show")) {
-                  if (
-                    window.modalTicketId &&
-                    window.modalCurrentPage &&
-                    window.modalPageSize !== undefined &&
-                    window.modalCurrentSearch !== undefined
-                  ) {
-                    window.fetchTicketDetails(
-                      window.modalTicketId,
-                      window.modalCurrentPage,
-                      window.modalPageSize,
-                      window.modalCurrentSearch
-                    );
-                  }
-                }
-              })
-              .then(() => {
-                if (typeof window.refreshOutageSummaryTable === "function") {
-                  window.refreshOutageSummaryTable();
-                }
-              })
-              .then(() => {
-                if (typeof window.refreshNetworkAvailability === "function") {
-                  window.refreshNetworkAvailability();
-                }
-              })
-              .finally(() => {
-                setTimeout(function () {
-                  btn.disabled = false;
-                  btn.innerHTML =
-                    '<i class="' + origIconClass + '"></i> Refresh All Data';
-                }, 500);
-              });
-          })
-          .invalidateAllSheetCaches();
-      });
-    }
-  });
+    // Expose reload for settings
+    window.reLoad = function () {
+      google.script.run
+        .withSuccessHandler(function () {
+          window.location.reload(true);
+        })
+        .withFailureHandler(function () {
+          window.location.reload();
+        })
+        .forceFullRefresh();
+    };
+  })();
 </script>

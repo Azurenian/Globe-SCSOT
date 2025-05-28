@@ -221,7 +221,8 @@ function getCurrentSpreadsheetLastUpdated() {
  */
 function getTicketListPaged(search, page, pageSize) {
   try {
-    const data = getSheetVal('MAJOR INCIDENTS_UPDATED');
+    // Use the configured sheet name from PropertyService
+    const data = getSheetVal(getSheetName());
     if (data.length === 0) return { tickets: [], total: 0, sheetIdError: false };
     const startIdx = (typeof data[0][0] === 'string' && data[0][0].toLowerCase().includes('ticket')) ? 1 : 0;
     const seen = new Set();
@@ -259,7 +260,8 @@ function getTicketListPaged(search, page, pageSize) {
 function getTicketDetailsById(ticketId, page, pageSize, search) {
   try {
     if (!ticketId) return { columns: [], rows: [], total: 0, error: 'No Ticket ID provided.' };
-    const data = getSheetVal('MAJOR INCIDENTS_UPDATED');
+    // Use the configured sheet name from PropertyService
+    const data = getSheetVal(getSheetName());
     if (!data || data.length === 0) return { columns: [], rows: [], total: 0, error: 'No data found.' };
     const columns = data[0];
     let rows = [];
@@ -289,7 +291,8 @@ function getTicketDetailsById(ticketId, page, pageSize, search) {
  */
 function getOutageSummaryTable() {
   try {
-    const data = getSheetVal('MAJOR INCIDENTS_UPDATED');
+    // Use the configured sheet name from PropertyService
+    const data = getSheetVal(getSheetName());
     if (!data || data.length === 0) return { cableSystems: [], rfoTypes: [], counts: {}, error: 'No data found.', sheetIdError: false };
     const columns = data[0];
     const cableSystemIdx = columns.findIndex(c => String(c).toLowerCase() === 'cable system');
@@ -324,7 +327,8 @@ function getOutageSummaryTable() {
  */
 function getNetworkAvailabilityData() {
   try {
-    const data = getSheetVal('MAJOR INCIDENTS_UPDATED');
+    // Use the configured sheet name from PropertyService
+    const data = getSheetVal(getSheetName());
     if (!data || data.length === 0) return { cableSystems: [], segments: [], years: [], data: {}, error: 'No data found.', sheetIdError: false };
     const columns = data[0].map(c => String(c).toLowerCase());
     const csIdx = columns.findIndex(c => c === 'cable system');
@@ -435,6 +439,77 @@ function getNetworkAvailabilityData() {
   }
 }
 
+/**
+ * Gets paginated data for the Major Incidents table with search functionality
+ * @param {number} page - Page number (1-based)
+ * @param {number} pageSize - Number of items per page
+ * @param {string} search - Search query
+ * @returns {Object} { columns: string[], rows: any[][], total: number, error: string|null, sheetIdError: boolean }
+ */
+function getMajorIncidentsTableData(page = 1, pageSize = 10, search = "") {
+  try {
+    // Use the configured sheet name from PropertyService
+    const data = getSheetVal(getSheetName());
+    if (!data || data.length === 0) {
+      return { columns: [], rows: [], total: 0, error: 'No data found.', sheetIdError: false };
+    }
+
+    const columns = data[0];
+    let rows = data.slice(1); // Skip header row
+
+    // Apply search filter
+    if (search && search.trim() !== "") {
+      const searchTerm = search.trim().toLowerCase();
+      rows = rows.filter(row => 
+        row.some(cell => 
+          String(cell).toLowerCase().includes(searchTerm)
+        )
+      );
+    }
+
+    const total = rows.length;
+    
+    // Apply pagination
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedRows = rows.slice(startIndex, endIndex);
+
+    return {
+      columns,
+      rows: paginatedRows,
+      total,
+      error: null,
+      sheetIdError: false
+    };
+  } catch (err) {
+    if (err && String(err).includes('Sheet ID not set')) {
+      return { columns: [], rows: [], total: 0, error: err.message, sheetIdError: true };
+    }
+    return { columns: [], rows: [], total: 0, error: err.message || 'Unknown error.', sheetIdError: false };
+  }
+}
+
+/**
+ * Gets the table structure (column headers) for Major Incidents
+ * @returns {Object} { columns: string[], error: string|null }
+ */
+function getMajorIncidentsTableStructure() {
+  try {
+    // Use the configured sheet name from PropertyService
+    const data = getSheetVal(getSheetName());
+    if (!data || data.length === 0) {
+      return { columns: [], error: 'No data found.' };
+    }
+
+    return {
+      columns: data[0],
+      error: null
+    };
+  } catch (err) {
+    return { columns: [], error: err.message || 'Unknown error.' };
+  }
+}
+
 // ==========================================
 // TIER 2: CRUD Operations
 // ==========================================
@@ -451,7 +526,7 @@ function addTableRow(ticketId, rowData) {
     
     // Backend validation for dropdowns
     var opts = getDropdownOptions();
-    var columns = getSheetVal('MAJOR INCIDENTS_UPDATED')[0];
+    var columns = getSheetVal(getSheetName())[0];
     
     // Validate dropdown values
     for (var i = 0; i < columns.length; i++) {
@@ -498,7 +573,7 @@ function editTableRow(ticketId, rowIndex, rowData) {
     
     // Backend validation for dropdowns
     var opts = getDropdownOptions();
-    var columns = getSheetVal('MAJOR INCIDENTS_UPDATED')[0];
+    var columns = getSheetVal(getSheetName())[0];
     
     // Validate dropdown values
     for (var i = 0; i < columns.length; i++) {
@@ -618,19 +693,31 @@ function deleteTableRows(ticketId, rowIndices) {
  * @returns {Object} An object with cableSystem and affectedSegment arrays
  */
 function getDropdownOptions() {
+  // Use cache for dropdowns to speed up modal loading
+  var cache = CacheService.getScriptCache();
+  var cacheKey = 'dropdown_options_' + getSheetName(); // Cache key includes sheet name
+  var cached = cache.get(cacheKey);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (e) {
+      // Ignore parse error, fallback to live fetch
+    }
+  }
+
   const ss = SpreadsheetApp.openById(getSheetId());
   const sheetName = getSheetName();
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return { cableSystem: [], affectedSegment: [] };
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   let cableSystemCol = -1, affectedSegmentCol = -1;
-  
+
   for (let i = 0; i < headers.length; i++) {
     const h = String(headers[i]).toLowerCase();
     if (h === 'cable system') cableSystemCol = i + 1;
     if (h.includes('affected segment')) affectedSegmentCol = i + 1;
   }
-  
+
   function getValidationOptions(col) {
     if (col === -1) return [];
     // Check data validation on row 2 (first data row)
@@ -647,10 +734,14 @@ function getDropdownOptions() {
     }
     return [];
   }
-  
+
   const cableSystem = getValidationOptions(cableSystemCol);
   const affectedSegment = getValidationOptions(affectedSegmentCol);
-  return { cableSystem, affectedSegment };
+  const result = { cableSystem, affectedSegment };
+  
+  // Cache for 2 minutes
+  cache.put(cacheKey, JSON.stringify(result), 120);
+  return result;
 }
 
 /**
@@ -685,9 +776,154 @@ function addTicket(ticketId) {
   }
 }
 
-// ==========================================
-// TIER 3: Export Functions
-// ==========================================
+/**
+ * Adds a new row to the Major Incidents table
+ * @param {string[]} rowData - Complete row data with all columns
+ * @returns {Object} { success: boolean, error: string|null }
+ */
+function addMajorIncidentsRow(rowData) {
+  try {
+    if (!Array.isArray(rowData)) {
+      return { success: false, error: 'Invalid input data.' };
+    }
+
+    // Backend validation for dropdowns
+    const opts = getDropdownOptions();
+    const columns = getSheetVal(getSheetName())[0];
+    
+    // Validate dropdown values
+    for (let i = 0; i < columns.length && i < rowData.length; i++) {
+      if (typeof rowData[i] === 'string') rowData[i] = rowData[i].trim();
+      const label = String(columns[i]).trim().toLowerCase();
+      
+      if (label === 'cable system' && rowData[i] && !opts.cableSystem.includes(rowData[i])) {
+        return { success: false, error: 'Cable System must be one of: ' + opts.cableSystem.join(', ') };
+      }
+      if (label === 'affected segment' && rowData[i] && !opts.affectedSegment.includes(rowData[i])) {
+        return { success: false, error: 'Affected Segment must be one of: ' + opts.affectedSegment.join(', ') };
+      }
+    }
+
+    const ss = SpreadsheetApp.openById(getSheetId());
+    const sheetName = getSheetName();
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return { success: false, error: 'Sheet not found.' };
+
+    // Ensure row has enough columns
+    const numCols = sheet.getLastColumn();
+    while (rowData.length < numCols) rowData.push('');
+
+    sheet.appendRow(rowData);
+
+    // Invalidate cache
+    invalidateAllSheetCaches();
+    return { success: true, error: null };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Edits a row in the Major Incidents table
+ * @param {number} rowIndex - 0-based index of the row to edit (excluding header)
+ * @param {string[]} rowData - Array of new cell values for the row
+ * @returns {Object} { success: boolean, error: string|null }
+ */
+function editMajorIncidentsRow(rowIndex, rowData) {
+  try {
+    if (typeof rowIndex !== 'number' || !Array.isArray(rowData)) {
+      return { success: false, error: 'Invalid input parameters.' };
+    }
+
+    // Backend validation for dropdowns
+    const opts = getDropdownOptions();
+    const data = getSheetVal(getSheetName());
+    if (!data || data.length === 0) {
+      return { success: false, error: 'No data found.' };
+    }
+
+    const columns = data[0];
+    
+    // Validate dropdown values
+    for (let i = 0; i < columns.length && i < rowData.length; i++) {
+      if (typeof rowData[i] === 'string') rowData[i] = rowData[i].trim();
+      const label = String(columns[i]).trim().toLowerCase();
+      
+      if (label === 'cable system' && rowData[i] && !opts.cableSystem.includes(rowData[i])) {
+        return { success: false, error: 'Cable System must be one of: ' + opts.cableSystem.join(', ') };
+      }
+      if (label === 'affected segment' && rowData[i] && !opts.affectedSegment.includes(rowData[i])) {
+        return { success: false, error: 'Affected Segment must be one of: ' + opts.affectedSegment.join(', ') };
+      }
+    }
+
+    const ss = SpreadsheetApp.openById(getSheetId());
+    const sheetName = getSheetName();
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return { success: false, error: 'Sheet not found.' };
+
+    // Convert to 1-based sheet row index (adding 2: 1 for 1-based indexing, 1 for header row)
+    const sheetRowIndex = rowIndex + 2;
+    
+    // Validate row exists
+    if (sheetRowIndex > sheet.getLastRow()) {
+      return { success: false, error: 'Row not found.' };
+    }
+
+    // Update each cell in the row
+    for (let c = 0; c < rowData.length; c++) {
+      sheet.getRange(sheetRowIndex, c + 1).setValue(rowData[c]);
+    }
+
+    // Invalidate cache
+    invalidateAllSheetCaches();
+    return { success: true, error: null };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Deletes rows from the Major Incidents table
+ * @param {number[]} rowIndices - Array of 0-based row indices to delete (excluding header)
+ * @returns {Object} { success: boolean, error: string|null }
+ */
+function deleteMajorIncidentsRows(rowIndices) {
+  try {
+    if (!Array.isArray(rowIndices) || rowIndices.length === 0) {
+      return { success: false, error: 'No rows specified for deletion.' };
+    }
+
+    const ss = SpreadsheetApp.openById(getSheetId());
+    const sheetName = getSheetName();
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return { success: false, error: 'Sheet not found.' };
+
+    // Convert to 1-based sheet row indices and sort in descending order
+    const sheetRowIndices = rowIndices
+      .map(index => index + 2) // +2 for 1-based indexing and header row
+      .sort((a, b) => b - a); // Sort in descending order for safe deletion
+
+    // Validate all rows exist
+    const lastRow = sheet.getLastRow();
+    for (const rowIndex of sheetRowIndices) {
+      if (rowIndex > lastRow || rowIndex < 2) {
+        return { success: false, error: 'Invalid row index: ' + (rowIndex - 2) };
+      }
+    }
+
+    // Delete rows from bottom up
+    sheetRowIndices.forEach(rowIndex => {
+      sheet.deleteRow(rowIndex);
+    });
+
+    // Invalidate cache
+    invalidateAllSheetCaches();
+    return { success: true, error: null };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
 
 /**
  * Exports Outage Summary data in specified format
@@ -882,6 +1118,11 @@ function exportNetworkAvailabilityCSV(cableSystems, segments, years, data, optio
   
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
+  // Get current date for comparison
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth(); // 0-based (0 = January, 11 = December)
+  
   // Create a unified table format for all cable systems and segments
   let headers = ['Cable System', 'Segment', 'Year'];
   if (includeMonthHeaders) {
@@ -902,13 +1143,23 @@ function exportNetworkAvailabilityCSV(cableSystems, segments, years, data, optio
         
         if (includeMonthHeaders) {
           for (let m = 0; m < 12; m++) {
-            const value = data[cs]?.[seg]?.[year]?.[m];
-            if (typeof value === 'number') {
-              row.push(value.toFixed(2));
-              yearSum += value;
-              monthCount++;
-            } else {
+            // Check if this month/year is in the future
+            const isFutureDate = parseInt(year) > currentYear || 
+                                (parseInt(year) === currentYear && m > currentMonth);
+            
+            if (isFutureDate) {
+              // For future dates, display "---"
               row.push('---');
+            } else {
+              // For past or current dates, display the percentage
+              const value = data[cs]?.[seg]?.[year]?.[m];
+              if (typeof value === 'number') {
+                row.push(value.toFixed(2));
+                yearSum += value;
+                monthCount++;
+              } else {
+                row.push('---');
+              }
             }
           }
         }
@@ -1032,6 +1283,7 @@ function exportNetworkAvailabilityPDF(cableSystems, segments, years, data, optio
           .na-yellow { background-color: #ffe066 !important; }
           .na-orange { background-color: #fd7e14 !important; color: white; }
           .na-red { background-color: #dc3545 !important; color: white; }
+          .na-future { color: #999999; background-color: #f8f9fa; }
         </style>
       </head>
       <body>
@@ -1043,6 +1295,11 @@ function exportNetworkAvailabilityPDF(cableSystems, segments, years, data, optio
   }
   
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  // Get current date for comparison
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth(); // 0-based (0 = January, 11 = December)
   
   // Export data for each cable system and segment combination
   cableSystems.forEach(cs => {
@@ -1065,21 +1322,31 @@ function exportNetworkAvailabilityPDF(cableSystems, segments, years, data, optio
         
         if (includeMonthHeaders) {
           for (let m = 0; m < 12; m++) {
-            const value = data[cs]?.[seg]?.[year]?.[m];
-            if (typeof value === 'number') {
-              let cellClass = '';
-              if (includeColorCoding) {
-                if (value >= 90) cellClass = 'na-darkblue';
-                else if (value >= 70) cellClass = 'na-lightgreen';
-                else if (value >= 40) cellClass = 'na-yellow';
-                else if (value >= 20) cellClass = 'na-orange';
-                else cellClass = 'na-red';
-              }
-              htmlContent += `<td class="${cellClass}">${value.toFixed(2)}%</td>`;
-              yearSum += value;
-              monthCount++;
+            // Check if this month/year is in the future
+            const isFutureDate = parseInt(year) > currentYear || 
+                                (parseInt(year) === currentYear && m > currentMonth);
+            
+            if (isFutureDate) {
+              // For future dates, display "---" with neutral styling
+              htmlContent += '<td class="na-future">---</td>';
             } else {
-              htmlContent += '<td>---</td>';
+              // For past or current dates, display the percentage with color coding
+              const value = data[cs]?.[seg]?.[year]?.[m];
+              if (typeof value === 'number') {
+                let cellClass = '';
+                if (includeColorCoding) {
+                  if (value >= 90) cellClass = 'na-darkblue';
+                  else if (value >= 70) cellClass = 'na-lightgreen';
+                  else if (value >= 40) cellClass = 'na-yellow';
+                  else if (value >= 20) cellClass = 'na-orange';
+                  else cellClass = 'na-red';
+                }
+                htmlContent += `<td class="${cellClass}">${value.toFixed(2)}%</td>`;
+                yearSum += value;
+                monthCount++;
+              } else {
+                htmlContent += '<td>---</td>';
+              }
             }
           }
         }
@@ -1098,6 +1365,155 @@ function exportNetworkAvailabilityPDF(cableSystems, segments, years, data, optio
   });
   
   htmlContent += '</body></html>';
+  
+  // Convert HTML to PDF
+  const blob = Utilities.newBlob(htmlContent, 'text/html', 'temp.html');
+  const pdfBlob = blob.getAs('application/pdf');
+  const base64Data = Utilities.base64Encode(pdfBlob.getBytes());
+  
+  return {
+    success: true,
+    data: base64Data,
+    filename: `${filename}.pdf`,
+    mimeType: 'application/pdf'
+  };
+}
+
+/**
+ * Exports Major Incidents data in specified format
+ * @param {Object} params - Export parameters
+ * @returns {Object} { success: boolean, data: string, filename: string, mimeType: string, error: string }
+ */
+function exportMajorIncidents(params) {
+  try {
+    const {
+      format,
+      filename = 'major-incidents',
+      includeHeaders = true,
+      searchFilter = '',
+      title = 'Major Incidents Report',
+      includeDate = true
+    } = params;
+
+    // Get major incidents data
+    let result = getMajorIncidentsTableData(1, 1000, searchFilter); // Get all data with large page size
+    if (result.error) {
+      return { success: false, error: result.error };
+    }
+
+    let { columns, rows } = result;
+    
+    if (format === 'csv') {
+      return exportMajorIncidentsCSV(columns, rows, {
+        filename,
+        includeHeaders,
+        title,
+        includeDate
+      });
+    } else if (format === 'pdf') {
+      return exportMajorIncidentsPDF(columns, rows, {
+        filename,
+        includeHeaders,
+        title,
+        includeDate
+      });
+    } else {
+      return { success: false, error: 'Invalid export format specified.' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message || 'Export failed.' };
+  }
+}
+
+/**
+ * Helper function to export Major Incidents as CSV
+ */
+function exportMajorIncidentsCSV(columns, rows, options) {
+  const { filename, includeHeaders, title, includeDate } = options;
+  
+  let csvContent = '';
+  
+  // Add metadata
+  if (includeDate) {
+    csvContent += `"Generated on","${new Date().toLocaleString()}"\n`;
+  }
+  csvContent += `"Report","${title}"\n\n`;
+  
+  // Add headers
+  if (includeHeaders) {
+    csvContent += columns.map(h => `"${h}"`).join(',') + '\n';
+  }
+  
+  // Add data rows
+  rows.forEach(row => {
+    csvContent += row.map(cell => {
+      // Escape quotes and wrap in quotes
+      const cellStr = String(cell || '');
+      return `"${cellStr.replace(/"/g, '""')}"`;
+    }).join(',') + '\n';
+  });
+  
+  // Convert to base64
+  const blob = Utilities.newBlob(csvContent, 'text/csv', `${filename}.csv`);
+  const base64Data = Utilities.base64Encode(blob.getBytes());
+  
+  return {
+    success: true,
+    data: base64Data,
+    filename: `${filename}.csv`,
+    mimeType: 'text/csv'
+  };
+}
+
+/**
+ * Helper function to export Major Incidents as PDF
+ */
+function exportMajorIncidentsPDF(columns, rows, options) {
+  const { filename, includeHeaders, title, includeDate } = options;
+  
+  // Create HTML content for PDF
+  let htmlContent = `
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { color: #333; text-align: center; }
+          .metadata { text-align: center; margin-bottom: 20px; color: #666; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+          th { background-color: #f2f2f2; font-weight: bold; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+        </style>
+      </head>
+      <body>
+        <h1>${title}</h1>
+  `;
+  
+  if (includeDate) {
+    htmlContent += `<div class="metadata">Generated on: ${new Date().toLocaleString()}</div>`;
+  }
+  
+  htmlContent += '<table>';
+  
+  // Add headers
+  if (includeHeaders && columns.length > 0) {
+    htmlContent += '<thead><tr>';
+    columns.forEach(header => {
+      htmlContent += `<th>${header}</th>`;
+    });
+    htmlContent += '</tr></thead>';
+  }
+  
+  // Add data rows
+  htmlContent += '<tbody>';
+  rows.forEach(row => {
+    htmlContent += '<tr>';
+    row.forEach(cell => {
+      htmlContent += `<td>${cell || ''}</td>`;
+    });
+    htmlContent += '</tr>';
+  });
+  htmlContent += '</tbody></table></body></html>';
   
   // Convert HTML to PDF
   const blob = Utilities.newBlob(htmlContent, 'text/html', 'temp.html');

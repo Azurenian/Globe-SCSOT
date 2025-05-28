@@ -1,0 +1,1002 @@
+<!-- Major Incidents Table Frontend Logic -->
+<script>
+  (function () {
+    // State management
+    let currentPage = 1;
+    let pageSize = 10;
+    let searchQuery = "";
+    let isLoading = false;
+    let selectedRowIndices = new Set();
+    let lastSelectedRowIndex = null;
+    let currentData = [];
+    let totalItems = 0;
+
+    // Initialize on DOM load
+    document.addEventListener("DOMContentLoaded", function () {
+      initializeMajorIncidentsTable();
+      attachEventListeners();
+    });
+
+    function initializeMajorIncidentsTable() {
+      fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+    }
+
+    function attachEventListeners() {
+      // Search functionality
+      const searchBtn = document.getElementById("major-incidents-search-btn");
+      const resetBtn = document.getElementById("major-incidents-reset-btn");
+      const searchInput = document.getElementById("major-incidents-search");
+
+      if (searchBtn) searchBtn.addEventListener("click", handleSearch);
+      if (resetBtn) resetBtn.addEventListener("click", handleReset);
+      if (searchInput) {
+        searchInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") handleSearch();
+        });
+      }
+
+      // Page size change
+      const pageSizeSelect = document.getElementById(
+        "major-incidents-page-size"
+      );
+      if (pageSizeSelect) {
+        pageSizeSelect.addEventListener("change", handlePageSizeChange);
+      }
+
+      // Page jump form
+      const pageJumpForm = document.getElementById(
+        "major-incidents-page-jump-form"
+      );
+      if (pageJumpForm) {
+        pageJumpForm.addEventListener("submit", handlePageJump);
+      }
+
+      // CRUD buttons
+      const addBtn = document.getElementById("major-incidents-add-btn");
+      const editBtn = document.getElementById("major-incidents-edit-btn");
+      const deleteBtn = document.getElementById("major-incidents-delete-btn");
+
+      if (addBtn) addBtn.addEventListener("click", handleAddRow);
+      if (editBtn) editBtn.addEventListener("click", handleEditRow);
+      if (deleteBtn) deleteBtn.addEventListener("click", handleDeleteRows);
+    }
+
+    function setLoading(loading) {
+      const container = document.getElementById(
+        "major-incidents-table-container"
+      );
+      const cardBody = container ? container.closest(".card-body") : null;
+      let overlay = document.getElementById("major-incidents-loading-overlay");
+
+      if (!overlay && cardBody) {
+        overlay = document.createElement("div");
+        overlay.id = "major-incidents-loading-overlay";
+        overlay.className =
+          "position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex justify-content-center align-items-center";
+        overlay.style.zIndex = 10;
+        overlay.innerHTML =
+          '<div class="spinner-border text-white" role="status" aria-label="Loading"></div>';
+        cardBody.style.position = "relative";
+        cardBody.appendChild(overlay);
+      }
+
+      if (overlay) {
+        overlay.classList.toggle("d-none", !loading);
+      }
+
+      // Disable/enable CRUD buttons
+      const crudButtons = [
+        "major-incidents-add-btn",
+        "major-incidents-edit-btn",
+        "major-incidents-delete-btn",
+      ];
+      crudButtons.forEach((btnId) => {
+        const btn = document.getElementById(btnId);
+        if (btn && loading) btn.disabled = true;
+        if (btn && !loading) updateCrudButtons(); // Will set proper state
+      });
+
+      isLoading = loading;
+    }
+
+    function clearSelections() {
+      selectedRowIndices.clear();
+      lastSelectedRowIndex = null;
+      // No need to call updateRowVisuals here as it's typically called after data fetch/render
+    }
+
+    function updateCrudButtons() {
+      const addBtn = document.getElementById("major-incidents-add-btn");
+      const editBtn = document.getElementById("major-incidents-edit-btn");
+      const deleteBtn = document.getElementById("major-incidents-delete-btn");
+
+      if (isLoading) {
+        if (addBtn) addBtn.disabled = true;
+        if (editBtn) editBtn.disabled = true;
+        if (deleteBtn) deleteBtn.disabled = true;
+        return;
+      }
+
+      if (addBtn) addBtn.disabled = false; // Add button is always enabled if not loading
+
+      if (editBtn) {
+        editBtn.disabled = selectedRowIndices.size !== 1;
+      }
+      if (deleteBtn) {
+        deleteBtn.disabled = selectedRowIndices.size === 0;
+      }
+    }
+
+    function fetchMajorIncidentsData(page, size, search) {
+      setLoading(true);
+      clearSelections();
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          setLoading(false);
+          if (result.error) {
+            renderError(result.error, result.sheetIdError);
+            return;
+          }
+          currentData = result.rows || [];
+          totalItems = result.total || 0;
+          renderTable(result);
+          renderPagination();
+          updateRangeText();
+          updateCrudButtons();
+        })
+        .withFailureHandler(function (error) {
+          setLoading(false);
+          renderError(error.message || "Failed to load data.");
+        })
+        .getMajorIncidentsTableData(page, size, search);
+    }
+
+    function renderTable(result) {
+      const container = document.getElementById(
+        "major-incidents-table-content"
+      );
+
+      if (!container) return;
+
+      if (result.sheetIdError) {
+        container.innerHTML =
+          '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Data source not set. Please go to <b>Settings</b> and enter a valid Google Sheet ID.</div>';
+        return;
+      }
+
+      if (!result.columns || !result.rows || result.rows.length === 0) {
+        container.innerHTML =
+          '<div class="alert alert-info">No data found.</div>';
+        return;
+      }
+
+      let html =
+        '<div class="table-responsive"><table class="table table-bordered table-striped table-sm major-incidents-table"><thead class="table-light"><tr>';
+
+      // Add columns
+      result.columns.forEach((col) => {
+        html += `<th>${col}</th>`;
+      });
+      html += '</tr></thead><tbody id="major-incidents-tbody">';
+
+      // Add data rows
+      result.rows.forEach((row, index) => {
+        html += `<tr data-row-index="${index}" style="cursor: pointer;">`;
+        row.forEach((cell) => {
+          html += `<td>${cell || ""}</td>`;
+        });
+        html += "</tr>";
+      });
+
+      html += "</tbody></table></div>";
+      container.innerHTML = html;
+
+      // Attach row selection handlers
+      attachRowSelectionHandlers();
+    }
+
+    function attachRowSelectionHandlers() {
+      const tbody = document.getElementById("major-incidents-tbody");
+      if (!tbody) return;
+
+      tbody.addEventListener("click", function (e) {
+        const row = e.target.closest("tr");
+        if (!row) return;
+
+        const rowIndex = parseInt(row.getAttribute("data-row-index"));
+        if (isNaN(rowIndex)) return;
+
+        handleRowSelection(rowIndex, e);
+        updateRowVisuals();
+        updateCrudButtons();
+      });
+    }
+
+    function handleRowSelection(rowIndex, event) {
+      if (event.ctrlKey || event.metaKey) {
+        // Toggle selection
+        if (selectedRowIndices.has(rowIndex)) {
+          selectedRowIndices.delete(rowIndex);
+        } else {
+          selectedRowIndices.add(rowIndex);
+        }
+        lastSelectedRowIndex = rowIndex;
+      } else if (event.shiftKey && lastSelectedRowIndex !== null) {
+        // Range selection
+        const start = Math.min(lastSelectedRowIndex, rowIndex);
+        const end = Math.max(lastSelectedRowIndex, rowIndex);
+        for (let i = start; i <= end; i++) {
+          selectedRowIndices.add(i);
+        }
+      } else {
+        // Single selection
+        selectedRowIndices.clear();
+        selectedRowIndices.add(rowIndex);
+        lastSelectedRowIndex = rowIndex;
+      }
+    }
+
+    function updateRowVisuals() {
+      const rows = document.querySelectorAll("#major-incidents-tbody tr");
+      rows.forEach((row, index) => {
+        row.classList.remove("table-primary", "selected-major-row");
+        if (selectedRowIndices.has(index)) {
+          row.classList.add("selected-major-row");
+        }
+      });
+    }
+
+    function attachRowEventListeners() {
+      const tbody = document.getElementById("major-incidents-tbody");
+      if (!tbody) return;
+
+      tbody.addEventListener("click", function (e) {
+        if (isLoading) return;
+
+        const row = e.target.closest("tr");
+        if (!row) return;
+
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        const rowIndex = rows.indexOf(row);
+        if (rowIndex === -1) return;
+
+        // Handle multi-selection
+        if (e.ctrlKey || e.metaKey) {
+          if (selectedRowIndices.has(rowIndex)) {
+            selectedRowIndices.delete(rowIndex);
+          } else {
+            selectedRowIndices.add(rowIndex);
+          }
+        } else if (e.shiftKey && lastSelectedRowIndex !== null) {
+          const start = Math.min(lastSelectedRowIndex, rowIndex);
+          const end = Math.max(lastSelectedRowIndex, rowIndex);
+          for (let i = start; i <= end; i++) {
+            selectedRowIndices.add(i);
+          }
+        } else {
+          selectedRowIndices.clear();
+          selectedRowIndices.add(rowIndex);
+        }
+
+        lastSelectedRowIndex = rowIndex;
+        updateRowVisuals();
+        updateCrudButtons();
+      });
+    }
+
+    function renderMajorIncidentsTable(data, columns) {
+      const tbody = document.getElementById("major-incidents-tbody");
+      if (!tbody) return;
+
+      tbody.innerHTML = "";
+      data.forEach((row, index) => {
+        const tr = document.createElement("tr");
+        row.forEach((cell) => {
+          const td = document.createElement("td");
+          td.textContent = cell || "";
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      // After rendering table HTML, attach event listeners
+      setTimeout(() => {
+        attachRowEventListeners();
+        updateRowVisuals();
+        updateCrudButtons();
+      }, 0);
+    }
+
+    function renderPagination() {
+      const totalPages = Math.ceil(totalItems / pageSize);
+      const pagination = document.getElementById("major-incidents-pagination");
+
+      if (!pagination) return;
+
+      pagination.innerHTML = "";
+
+      if (totalPages <= 1) return;
+
+      // Previous button
+      const prevItem = document.createElement("li");
+      prevItem.className = `page-item ${currentPage === 1 ? "disabled" : ""}`;
+      prevItem.innerHTML = `<a class="page-link" href="#" data-page="${
+        currentPage - 1
+      }"><i class="bi bi-chevron-left"></i></a>`;
+      pagination.appendChild(prevItem);
+
+      // Page numbers
+      const start = Math.max(1, currentPage - 2);
+      const end = Math.min(totalPages, currentPage + 2);
+
+      if (start > 1) {
+        const firstItem = document.createElement("li");
+        firstItem.className = "page-item";
+        firstItem.innerHTML = `<a class="page-link" href="#" data-page="1">1</a>`;
+        pagination.appendChild(firstItem);
+
+        if (start > 2) {
+          const ellipsis = document.createElement("li");
+          ellipsis.className = "page-item disabled";
+          ellipsis.innerHTML = `<span class="page-link">…</span>`;
+          pagination.appendChild(ellipsis);
+        }
+      }
+
+      for (let i = start; i <= end; i++) {
+        const pageItem = document.createElement("li");
+        pageItem.className = `page-item ${i === currentPage ? "active" : ""}`;
+        pageItem.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+        pagination.appendChild(pageItem);
+      }
+
+      if (end < totalPages) {
+        if (end < totalPages - 1) {
+          const ellipsis = document.createElement("li");
+          ellipsis.className = "page-item disabled";
+          ellipsis.innerHTML = `<span class="page-link">…</span>`;
+          pagination.appendChild(ellipsis);
+        }
+
+        const lastItem = document.createElement("li");
+        lastItem.className = "page-item";
+        lastItem.innerHTML = `<a class="page-link" href="#" data-page="${totalPages}">${totalPages}</a>`;
+        pagination.appendChild(lastItem);
+      }
+
+      // Next button
+      const nextItem = document.createElement("li");
+      nextItem.className = `page-item ${
+        currentPage === totalPages ? "disabled" : ""
+      }`;
+      nextItem.innerHTML = `<a class="page-link" href="#" data-page="${
+        currentPage + 1
+      }"><i class="bi bi-chevron-right"></i></a>`;
+      pagination.appendChild(nextItem);
+
+      // Attach click handlers
+      pagination.addEventListener("click", function (e) {
+        e.preventDefault();
+        const link = e.target.closest("a");
+        if (!link) return;
+
+        const page = parseInt(link.getAttribute("data-page"));
+        if (
+          !isNaN(page) &&
+          page !== currentPage &&
+          page >= 1 &&
+          page <= totalPages
+        ) {
+          currentPage = page;
+          fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+        }
+      });
+    }
+
+    function updateRangeText() {
+      const rangeText = document.getElementById("major-incidents-range");
+      if (!rangeText) return;
+
+      if (totalItems === 0) {
+        rangeText.textContent = "Showing 0-0 of 0 items";
+        return;
+      }
+
+      const start = (currentPage - 1) * pageSize + 1;
+      const end = Math.min(currentPage * pageSize, totalItems);
+      rangeText.textContent = `Showing ${start}-${end} of ${totalItems} items`;
+    }
+
+    function renderError(message, isSheetIdError = false) {
+      const container = document.getElementById(
+        "major-incidents-table-content"
+      );
+      if (!container) return;
+
+      if (isSheetIdError) {
+        container.innerHTML =
+          '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Data source not set. Please go to <b>Settings</b> and enter a valid Google Sheet ID.</div>';
+      } else {
+        container.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-circle me-2"></i>${message}</div>`;
+      }
+    }
+
+    // Event handlers
+    function handleSearch() {
+      const searchInput = document.getElementById("major-incidents-search");
+      searchQuery = searchInput ? searchInput.value.trim() : "";
+      currentPage = 1;
+      fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+    }
+
+    function handleReset() {
+      const searchInput = document.getElementById("major-incidents-search");
+      if (searchInput) searchInput.value = "";
+      searchQuery = "";
+      currentPage = 1;
+      fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+    }
+
+    function handlePageSizeChange() {
+      const pageSizeSelect = document.getElementById(
+        "major-incidents-page-size"
+      );
+      pageSize = pageSizeSelect ? parseInt(pageSizeSelect.value) : 10;
+      currentPage = 1;
+      fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+    }
+
+    function handlePageJump(e) {
+      e.preventDefault();
+      const pageInput = document.getElementById("major-incidents-page-jump");
+      const page = pageInput ? parseInt(pageInput.value) : 0;
+      const totalPages = Math.ceil(totalItems / pageSize);
+
+      if (!isNaN(page) && page >= 1 && page <= totalPages) {
+        currentPage = page;
+        fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+      }
+      if (pageInput) pageInput.value = "";
+    }
+
+    function handleAddRow() {
+      const addBtn = document.getElementById("major-incidents-add-btn");
+      if (addBtn) {
+        addBtn.disabled = true;
+        const origHtml = addBtn.innerHTML;
+        addBtn.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Loading...';
+        google.script.run
+          .withSuccessHandler(function (result) {
+            addBtn.disabled = false;
+            addBtn.innerHTML = origHtml;
+            if (result.error) {
+              showErrorModal("Error: " + result.error);
+              return;
+            }
+            const columns = result.columns || [];
+            openAddEditModal(true, columns, null, -1);
+          })
+          .withFailureHandler(function (error) {
+            addBtn.disabled = false;
+            addBtn.innerHTML = origHtml;
+            showErrorModal("Failed to get table structure: " + error.message);
+          })
+          .getMajorIncidentsTableStructure();
+      }
+    }
+
+    function handleEditRow() {
+      if (selectedRowIndices.size !== 1) return;
+      const editBtn = document.getElementById("major-incidents-edit-btn");
+      if (editBtn) {
+        editBtn.disabled = true;
+        const origHtml = editBtn.innerHTML;
+        editBtn.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Loading...';
+        const rowIndex = Array.from(selectedRowIndices)[0];
+        const rowData = currentData[rowIndex];
+        google.script.run
+          .withSuccessHandler(function (result) {
+            editBtn.disabled = false;
+            editBtn.innerHTML = origHtml;
+            if (result.error) {
+              showErrorModal("Error: " + result.error);
+              return;
+            }
+            const columns = result.columns || [];
+            openAddEditModal(false, columns, rowData, rowIndex);
+          })
+          .withFailureHandler(function (error) {
+            editBtn.disabled = false;
+            editBtn.innerHTML = origHtml;
+            showErrorModal("Failed to get table structure: " + error.message);
+          })
+          .getMajorIncidentsTableStructure();
+      }
+    }
+
+    function handleDeleteRows() {
+      if (selectedRowIndices.size === 0) return;
+      const deleteBtn = document.getElementById("major-incidents-delete-btn");
+      if (deleteBtn) {
+        deleteBtn.disabled = true;
+        const origHtml = deleteBtn.innerHTML;
+        deleteBtn.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Loading...';
+        const rowIndices = Array.from(selectedRowIndices);
+        const rowsToDelete = rowIndices.map((index) => currentData[index]);
+        // Simulate async for modal open (to keep UI consistent)
+        setTimeout(() => {
+          deleteBtn.disabled = false;
+          deleteBtn.innerHTML = origHtml;
+          openDeleteConfirmationModal(rowsToDelete, rowIndices);
+        }, 350);
+      }
+    }
+
+    function openAddEditModal(isAdd, columns, rowData, rowIndex) {
+      // Use existing CRUD modal
+      const modal = document.getElementById("editTableRowModal");
+      if (!modal) {
+        showErrorModal(
+          "Add/Edit modal not found. Please check if the modal is included in the page."
+        );
+        return;
+      }
+
+      const modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
+
+      // Set modal title
+      const modalLabel = document.getElementById("editTableRowModalLabel");
+      if (modalLabel) {
+        modalLabel.textContent = isAdd ? "Add New Row" : "Edit Row";
+      }
+
+      // Populate form fields
+      const fieldsContainer = document.getElementById("edit-table-row-fields");
+      if (fieldsContainer) {
+        fieldsContainer.innerHTML = "";
+
+        // Helper for month names
+        const monthNames = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
+
+        let startInputIdx = -1,
+          endInputIdx = -1,
+          durationIdx = -1,
+          monthIdx = -1,
+          yearIdx = -1;
+
+        // Identify indices for special fields
+        columns.forEach((col, idx) => {
+          const label = col.toLowerCase();
+          if (label.includes("start date") || label.includes("start time"))
+            startInputIdx = idx;
+          if (label.includes("end date") || label.includes("end time"))
+            endInputIdx = idx;
+          if (label.includes("duration")) durationIdx = idx;
+          if (label.includes("month")) monthIdx = idx;
+          if (label.includes("year")) yearIdx = idx;
+        });
+
+        columns.forEach((column, index) => {
+          const value = rowData ? rowData[index] || "" : "";
+          const label = column.toLowerCase();
+          let inputHtml = "";
+          let isRequired = index === 0 || !/description|remark/i.test(label);
+          let isDisabled = false;
+
+          // Date/Time fields (down to the second)
+          if (index === startInputIdx || index === endInputIdx) {
+            // Format value for datetime-local input (YYYY-MM-DDTHH:MM:SS)
+            let dtValue = "";
+            if (value) {
+              const d = new Date(value);
+              if (!isNaN(d.getTime())) {
+                const pad = (n) => n.toString().padStart(2, "0");
+                dtValue = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+                  d.getDate()
+                )}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(
+                  d.getSeconds()
+                )}`;
+              }
+            }
+            inputHtml = `<input type="datetime-local" step="1" class="form-control" id="field_${index}" value="${dtValue}" ${
+              isRequired ? "required" : ""
+            }>`;
+          }
+          // Duration, Month, Year: auto-calc, greyed out
+          else if (
+            index === durationIdx ||
+            index === monthIdx ||
+            index === yearIdx
+          ) {
+            isDisabled = true;
+            inputHtml = `<input type="text" class="form-control" id="field_${index}" value="${value}" readonly disabled placeholder="Auto-calculated">`;
+          }
+          // Dropdowns for Cable System / Affected Segment
+          else if (/^cable system$/.test(label)) {
+            inputHtml = `<select class="form-control" id="field_${index}" ${
+              isRequired ? "required" : ""
+            }></select>`;
+          } else if (/^affected segment$/.test(label)) {
+            inputHtml = `<select class="form-control" id="field_${index}" ${
+              isRequired ? "required" : ""
+            }></select>`;
+          }
+          // Default: text input
+          else {
+            inputHtml = `<input type="text" class="form-control" id="field_${index}" value="${value}" ${
+              isRequired ? "required" : ""
+            }>`;
+          }
+
+          const fieldDiv = document.createElement("div");
+          fieldDiv.className = "mb-3";
+          fieldDiv.innerHTML = `
+            <label for="field_${index}" class="form-label">${column}${
+            isRequired ? " <span class='text-danger'>*</span>" : ""
+          }</label>
+            ${inputHtml}
+          `;
+          fieldsContainer.appendChild(fieldDiv);
+        });
+
+        // Populate dropdowns for Cable System and Affected Segment
+        google.script.run
+          .withSuccessHandler(function (opts) {
+            columns.forEach((column, index) => {
+              const label = column.toLowerCase();
+              if (/^cable system$/.test(label)) {
+                const select = document.getElementById(`field_${index}`);
+                if (select) {
+                  select.innerHTML =
+                    `<option value="">Select Cable System</option>` +
+                    (opts.cableSystem || [])
+                      .map(
+                        (opt) =>
+                          `<option value="${opt}"${
+                            rowData && rowData[index] === opt ? " selected" : ""
+                          }>${opt}</option>`
+                      )
+                      .join("");
+                }
+              }
+              if (/^affected segment$/.test(label)) {
+                const select = document.getElementById(`field_${index}`);
+                if (select) {
+                  select.innerHTML =
+                    `<option value="">Select Affected Segment</option>` +
+                    (opts.affectedSegment || [])
+                      .map(
+                        (opt) =>
+                          `<option value="${opt}"${
+                            rowData && rowData[index] === opt ? " selected" : ""
+                          }>${opt}</option>`
+                      )
+                      .join("");
+                }
+              }
+            });
+          })
+          .getDropdownOptions();
+
+        // --- Auto-calculate Duration, Month, Year ---
+        function updateAutoFields() {
+          // Get start/end input values
+          const startInput =
+            startInputIdx >= 0
+              ? document.getElementById(`field_${startInputIdx}`)
+              : null;
+          const endInput =
+            endInputIdx >= 0
+              ? document.getElementById(`field_${endInputIdx}`)
+              : null;
+          const durationInput =
+            durationIdx >= 0
+              ? document.getElementById(`field_${durationIdx}`)
+              : null;
+          const monthInput =
+            monthIdx >= 0 ? document.getElementById(`field_${monthIdx}`) : null;
+          const yearInput =
+            yearIdx >= 0 ? document.getElementById(`field_${yearIdx}`) : null;
+
+          // Duration
+          if (startInput && endInput && durationInput) {
+            const startVal = startInput.value;
+            const endVal = endInput.value;
+            if (startVal && endVal) {
+              const start = new Date(startVal);
+              const end = new Date(endVal);
+              if (!isNaN(start) && !isNaN(end) && end > start) {
+                const diffMs = end - start;
+                const diffSec = Math.floor(diffMs / 1000);
+                const h = Math.floor(diffSec / 3600);
+                const m = Math.floor((diffSec % 3600) / 60);
+                const s = diffSec % 60;
+                durationInput.value = `${h.toString().padStart(2, "0")}:${m
+                  .toString()
+                  .padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+              } else {
+                durationInput.value = "";
+              }
+            } else {
+              durationInput.value = "";
+            }
+          }
+          // Month/Year from Start Date
+          if (startInput && monthInput) {
+            const startVal = startInput.value;
+            if (startVal) {
+              const start = new Date(startVal);
+              if (!isNaN(start)) {
+                monthInput.value = monthNames[start.getMonth()];
+              } else {
+                monthInput.value = "";
+              }
+            } else {
+              monthInput.value = "";
+            }
+          }
+          if (startInput && yearInput) {
+            const startVal = startInput.value;
+            if (startVal) {
+              const start = new Date(startVal);
+              if (!isNaN(start)) {
+                yearInput.value = start.getFullYear().toString();
+              } else {
+                yearInput.value = "";
+              }
+            } else {
+              yearInput.value = "";
+            }
+          }
+        }
+
+        // Attach event listeners for auto-calc fields
+        if (startInputIdx >= 0) {
+          const startInput = document.getElementById(`field_${startInputIdx}`);
+          if (startInput)
+            startInput.addEventListener("change", updateAutoFields);
+        }
+        if (endInputIdx >= 0) {
+          const endInput = document.getElementById(`field_${endInputIdx}`);
+          if (endInput) endInput.addEventListener("change", updateAutoFields);
+        }
+      }
+
+      // Set up save handler
+      const saveBtn = document.getElementById("save-table-row-btn");
+      if (saveBtn) {
+        saveBtn.onclick = function () {
+          const formData = [];
+          columns.forEach((_, index) => {
+            const field = document.getElementById(`field_${index}`);
+            formData.push(field ? field.value : "");
+          });
+
+          if (isAdd) {
+            performAddRow(formData, modalInstance);
+          } else {
+            performEditRow(formData, rowIndex, modalInstance);
+          }
+        };
+      }
+
+      modalInstance.show();
+    }
+
+    function performAddRow(formData, modalInstance) {
+      setLoading(true);
+      const addBtn = document.getElementById("save-table-row-btn");
+      let origHtml;
+      if (addBtn) {
+        origHtml = addBtn.innerHTML;
+        addBtn.disabled = true;
+        addBtn.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Loading...';
+      }
+      google.script.run
+        .withSuccessHandler(function (result) {
+          setLoading(false);
+          if (addBtn) {
+            addBtn.disabled = false;
+            addBtn.innerHTML = origHtml;
+          }
+          if (result.success) {
+            modalInstance.hide();
+            showSuccessModal("Row added successfully!");
+            fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+          } else {
+            showErrorModal("Error: " + (result.error || "Failed to add row"));
+          }
+        })
+        .withFailureHandler(function (error) {
+          setLoading(false);
+          if (addBtn) {
+            addBtn.disabled = false;
+            addBtn.innerHTML = origHtml;
+          }
+          showErrorModal("Failed to add row: " + error.message);
+        })
+        .addMajorIncidentsRow(formData);
+    }
+
+    function performEditRow(formData, rowIndex, modalInstance) {
+      setLoading(true);
+      const saveBtn = document.getElementById("save-table-row-btn");
+      let origHtml;
+      if (saveBtn) {
+        origHtml = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Loading...';
+      }
+      const globalRowIndex = (currentPage - 1) * pageSize + rowIndex;
+      google.script.run
+        .withSuccessHandler(function (result) {
+          setLoading(false);
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = origHtml;
+          }
+          if (result.success) {
+            modalInstance.hide();
+            showSuccessModal("Row updated successfully!");
+            fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+          } else {
+            showErrorModal(
+              "Error: " + (result.error || "Failed to update row")
+            );
+          }
+        })
+        .withFailureHandler(function (error) {
+          setLoading(false);
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = origHtml;
+          }
+          showErrorModal("Failed to update row: " + error.message);
+        })
+        .editMajorIncidentsRow(globalRowIndex, formData);
+    }
+
+    function openDeleteConfirmationModal(rowsToDelete, rowIndices) {
+      const modal = document.getElementById("deleteTableRowModal");
+      if (!modal) {
+        showErrorModal(
+          "Delete Confirmation Modal is missing. Action cannot proceed. Please check the main HTML file for #deleteTableRowModal."
+        );
+        return;
+      }
+
+      const modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
+
+      // Set modal title
+      const modalLabel = document.getElementById("deleteTableRowModalLabel");
+      if (modalLabel) {
+        modalLabel.textContent = `Delete ${rowIndices.length} Row(s)`;
+      }
+
+      // Show rows to be deleted
+      const listContainer = document.getElementById("delete-table-row-list");
+      if (listContainer) {
+        listContainer.innerHTML = "";
+
+        rowsToDelete.forEach((row) => {
+          const listItem = document.createElement("div");
+          listItem.className = "alert alert-warning mb-2";
+          listItem.textContent = row[0] || "Empty row"; // Show first column value
+          listContainer.appendChild(listItem);
+        });
+      }
+
+      // Set up confirm handler
+      const confirmBtn = document.getElementById(
+        "confirm-delete-table-row-btn"
+      );
+      if (confirmBtn) {
+        confirmBtn.onclick = function () {
+          performDeleteRows(rowIndices, modalInstance);
+        };
+      }
+
+      modalInstance.show();
+    }
+
+    function performDeleteRows(rowIndices, modalInstance) {
+      setLoading(true);
+      const confirmBtn = document.getElementById(
+        "confirm-delete-table-row-btn"
+      );
+      let origHtml;
+      if (confirmBtn) {
+        origHtml = confirmBtn.innerHTML;
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Loading...';
+      }
+      const globalIndices = rowIndices.map(
+        (index) => (currentPage - 1) * pageSize + index
+      );
+      google.script.run
+        .withSuccessHandler(function (result) {
+          setLoading(false);
+          if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = origHtml;
+          }
+          if (result.success) {
+            if (modalInstance) modalInstance.hide();
+            showSuccessModal(
+              `${rowIndices.length} row(s) deleted successfully!`
+            );
+            fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+          } else {
+            showErrorModal(
+              "Error: " + (result.error || "Failed to delete rows")
+            );
+          }
+        })
+        .withFailureHandler(function (error) {
+          setLoading(false);
+          if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = origHtml;
+          }
+          showErrorModal("Failed to delete rows: " + error.message);
+        })
+        .deleteMajorIncidentsRows(globalIndices);
+    }
+
+    function showErrorModal(message) {
+      const modal = document.getElementById("errorModal");
+      if (modal) {
+        const messageEl = document.getElementById("errorModalMessage");
+        if (messageEl) messageEl.textContent = message;
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
+        modalInstance.show();
+      } else {
+        console.warn(
+          'Error modal element (id="errorModal") not found. Please check the main HTML file. Error: ' +
+            message
+        );
+      }
+    }
+
+    function showSuccessModal(message) {
+      const modal = document.getElementById("successModal");
+      if (modal) {
+        const messageEl = document.getElementById("successModalMessage");
+        if (messageEl) messageEl.textContent = message;
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modal);
+        modalInstance.show();
+      } else {
+        // Fallback to alert if modal element is not found, and log a warning.
+        console.warn(
+          'Success modal element (id="successModal") not found. Falling back to alert. Please check the main HTML file.'
+        );
+        alert(message);
+      }
+    }
+
+    // Expose refresh function for universal refresh
+    window.refreshMajorIncidentsTable = function () {
+      fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
+    };
+  })();
+</script>
