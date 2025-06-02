@@ -153,146 +153,8 @@
       </div>
     </div>
   </div>
+
   <div class="row mb-2">
-    <div class="col-12">
-      <div
-        class="card border-0 rounded-0 h-100 position-relative"
-        id="major-incidents-container"
-      >
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="card-title mb-0">
-              <i class="bi bi-graph-up-arrow text-success me-2"></i>Major
-              Incidents
-            </h5>
-            <button
-              type="button"
-              class="btn btn-outline-primary btn-sm"
-              id="exportMajorIncidentsBtn"
-              title="Export Major Incidents"
-            >
-              <i class="bi bi-download me-1"></i>Export
-            </button>
-          </div>
-          <div id="major-incidents-table-container">
-            <div
-              class="d-flex mb-2 gap-2 align-items-center justify-content-between"
-            >
-              <div class="d-flex gap-2 align-items-center">
-                <input
-                  type="text"
-                  id="major-incidents-search"
-                  class="form-control form-control-sm"
-                  style="max-width: 180px"
-                  placeholder="Search tickets..."
-                />
-                <button
-                  type="button"
-                  id="major-incidents-search-btn"
-                  class="btn btn-outline-secondary btn-sm"
-                  title="Search"
-                >
-                  <i class="bi bi-search"></i>
-                </button>
-                <button
-                  type="button"
-                  id="major-incidents-reset-btn"
-                  class="btn btn-outline-secondary btn-sm"
-                  title="Reset"
-                >
-                  <i class="bi bi-arrow-clockwise"></i>
-                </button>
-              </div>
-              <div class="d-flex align-items-center gap-2">
-                <button
-                  type="button"
-                  id="major-incidents-add-btn"
-                  class="btn btn-success btn-sm"
-                  title="Add New Row"
-                  disabled
-                >
-                  <i class="bi bi-plus-circle me-1"></i>
-                  Add
-                </button>
-                <button
-                  type="button"
-                  id="major-incidents-edit-btn"
-                  class="btn btn-warning btn-sm"
-                  title="Edit Selected Row"
-                  disabled
-                >
-                  <i class="bi bi-pencil me-1"></i>
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  id="major-incidents-delete-btn"
-                  class="btn btn-danger btn-sm"
-                  title="Delete Selected Rows"
-                  disabled
-                >
-                  <i class="bi bi-trash me-1"></i>
-                  Delete
-                </button>
-              </div>
-              <div
-                class="d-flex align-items-center ms-auto"
-                style="gap: 0.5rem"
-              >
-                <label for="major-incidents-page-size" class="mb-0 small"
-                  >Items per page:</label
-                >
-                <select
-                  id="major-incidents-page-size"
-                  class="form-select form-select-sm"
-                  style="width: auto; min-width: 60px; display: inline-block"
-                >
-                  <option value="5">5</option>
-                  <option value="10" selected>10</option>
-                  <option value="20">20</option>
-                </select>
-              </div>
-            </div>
-            <div id="major-incidents-table-content"></div>
-            <nav class="d-flex align-items-center justify-content-between mt-2">
-              <div class="d-flex align-items-center gap-2">
-                <form
-                  id="major-incidents-page-jump-form"
-                  class="d-flex align-items-center"
-                  style="gap: 0.25rem"
-                >
-                  <input
-                    type="number"
-                    min="1"
-                    id="major-incidents-page-jump"
-                    class="form-control form-control-sm"
-                    style="width: 80px"
-                    placeholder="Page"
-                  />
-                  <button
-                    type="submit"
-                    class="btn btn-outline-secondary btn-sm"
-                  >
-                    Go
-                  </button>
-                </form>
-                <ul
-                  id="major-incidents-pagination"
-                  class="pagination pagination-sm mb-0 flex-wrap"
-                ></ul>
-              </div>
-              <span
-                class="text-secondary small ms-auto"
-                id="major-incidents-range"
-                >Showing 0-0 of 0 items</span
-              >
-            </nav>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="row">
     <div class="col-12">
       <div class="card border-0 rounded-0 mt-3">
         <div class="card-body">
@@ -388,6 +250,146 @@
             </nav>
           </div>
           <?!= include('frontend-network-availability-js'); ?>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-2 mt-4">
+    <div class="col-12">
+      <div
+        class="card border-0 rounded-0 h-100 position-relative"
+        id="major-incidents-container mt-3"
+      >
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-graph-up-arrow text-success me-2"></i>Major
+              Incidents
+            </h5>
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              id="exportMajorIncidentsBtn"
+              title="Export Major Incidents"
+            >
+              <i class="bi bi-download me-1"></i>Export
+            </button>
+          </div>
+          <div id="major-incidents-table-container">
+            <div
+              class="d-flex mb-2 gap-2 align-items-center justify-content-between"
+            >
+              <div class="d-flex gap-2 align-items-center">
+                <input
+                  type="text"
+                  id="major-incidents-search"
+                  class="form-control form-control-sm"
+                  style="max-width: 180px"
+                  placeholder="Search tickets..."
+                />
+                <button
+                  type="button"
+                  id="major-incidents-search-btn"
+                  class="btn btn-outline-secondary btn-sm"
+                  title="Search"
+                >
+                  <i class="bi bi-search"></i>
+                </button>
+                <button
+                  type="button"
+                  id="major-incidents-reset-btn"
+                  class="btn btn-outline-secondary btn-sm"
+                  title="Reset"
+                >
+                  <i class="bi bi-arrow-clockwise"></i>
+                </button>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button
+                  type="button"
+                  id="major-incidents-add-btn"
+                  class="btn btn-success btn-sm"
+                  title="Add New Row"
+                  disabled
+                >
+                  <i class="bi bi-plus-circle me-1"></i>
+                  Add
+                </button>
+                <button
+                  type="button"
+                  id="major-incidents-edit-btn"
+                  class="btn btn-warning btn-sm"
+                  title="Edit Selected Row"
+                  disabled
+                >
+                  <i class="bi bi-pencil me-1"></i>
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  id="major-incidents-delete-btn"
+                  class="btn btn-danger btn-sm"
+                  title="Delete Selected Rows"
+                  disabled
+                >
+                  <i class="bi bi-trash me-1"></i>
+                  Delete
+                </button>
+              </div>
+              <div
+                class="d-flex align-items-center ms-auto"
+                style="gap: 0.5rem"
+              >
+                <label for="major-incidents-page-size" class="mb-0 small"
+                  >Items per page:</label
+                >
+                <select
+                  id="major-incidents-page-size"
+                  class="form-select form-select-sm"
+                  style="width: auto; min-width: 60px; display: inline-block"
+                >
+                  <option value="5" selected>5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                </select>
+              </div>
+            </div>
+            <div id="major-incidents-table-content"></div>
+            <nav class="d-flex align-items-center justify-content-between mt-2">
+              <div class="d-flex align-items-center gap-2">
+                <form
+                  id="major-incidents-page-jump-form"
+                  class="d-flex align-items-center"
+                  style="gap: 0.25rem"
+                >
+                  <input
+                    type="number"
+                    min="1"
+                    id="major-incidents-page-jump"
+                    class="form-control form-control-sm"
+                    style="width: 80px"
+                    placeholder="Page"
+                  />
+                  <button
+                    type="submit"
+                    class="btn btn-outline-secondary btn-sm"
+                  >
+                    Go
+                  </button>
+                </form>
+                <ul
+                  id="major-incidents-pagination"
+                  class="pagination pagination-sm mb-0 flex-wrap"
+                ></ul>
+              </div>
+              <span
+                class="text-secondary small ms-auto"
+                id="major-incidents-range"
+                >Showing 0-0 of 0 items</span
+              >
+            </nav>
+          </div>
         </div>
       </div>
     </div>

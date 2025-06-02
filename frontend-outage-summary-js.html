@@ -2,7 +2,12 @@
 <script>
   (function () {
     // Renders the Outage Summary Table in the A - Outage Summary section
-    function renderOutageSummaryTable(page = 1, pageSize = 5, search = "") {
+    function renderOutageSummaryTable(
+      page = 1,
+      pageSize = 5,
+      search = "",
+      groupBy = outageSummaryGroupBy
+    ) {
       const container = document.getElementById(
         "outage-summary-table-container"
       );
@@ -32,11 +37,11 @@
             container.innerHTML = `<div class="alert alert-danger">${res.error}</div>`;
             return;
           }
-          let { cableSystems, rfoTypes, counts } = res;
-          // Filter RFOs by search
+          let { cableSystems, rowTypes, counts } = res;
+          // Filter by search
           if (search && search.trim() !== "") {
-            rfoTypes = rfoTypes.filter((rfo) =>
-              rfo.toLowerCase().includes(search.trim().toLowerCase())
+            rowTypes = rowTypes.filter((row) =>
+              row.toLowerCase().includes(search.trim().toLowerCase())
             );
           }
           if (!cableSystems.length) {
@@ -45,20 +50,29 @@
             return;
           }
           // Pagination logic
-          const totalRFOs = rfoTypes.length;
-          const totalPages = Math.ceil(totalRFOs / pageSize);
+          const totalRows = rowTypes.length;
+          const totalPages = Math.ceil(totalRows / pageSize);
           const startIdx = (page - 1) * pageSize;
-          const endIdx = Math.min(startIdx + pageSize, totalRFOs);
-          const pagedRFOs = rfoTypes.slice(startIdx, endIdx);
-          // If search yields no results, show empty table with headers and a message (like Ticket List)
-          if (totalRFOs === 0) {
+          const endIdx = Math.min(startIdx + pageSize, totalRows);
+          const pagedRows = rowTypes.slice(startIdx, endIdx);
+          // If search yields no results, show empty table with headers and a message
+          if (totalRows === 0) {
             let html = `<div class="d-flex mb-2 gap-2 align-items-center justify-content-between" id="outage-summary-toolbar">
             <div class="d-flex gap-2 align-items-center">
-              <input type="text" id="outage-summary-search" class="form-control form-control-sm" style="max-width: 180px" placeholder="Search RFO..." value="${
+              <input type="text" id="outage-summary-search" class="form-control form-control-sm" style="max-width: 180px" placeholder="Search..." value="${
                 search || ""
               }" />
               <button type="button" id="outage-summary-search-btn" class="btn btn-outline-secondary btn-sm ms-1" title="Search"><i class="bi bi-search"></i></button>
               <button type="button" id="outage-summary-reset-btn" class="btn btn-outline-secondary btn-sm ms-1" title="Reset"><i class="bi bi-arrow-clockwise"></i></button>
+              <label for="outage-summary-groupby" class="mb-0 small ms-2">Group by:</label>
+              <select id="outage-summary-groupby" class="form-select form-select-sm ms-1" style="width: auto; min-width: 110px; display: inline-block">
+                <option value="rfo"${
+                  groupBy === "rfo" ? " selected" : ""
+                }>RFO</option>
+                <option value="segment"${
+                  groupBy === "segment" ? " selected" : ""
+                }>Segment</option>
+              </select>
             </div>`;
             html += `<div class="d-flex align-items-center ms-auto" style="gap: 0.5rem">
               <label for="outage-summary-page-size" class="mb-0 small">Items per page:</label>
@@ -74,7 +88,9 @@
             </div></div>`;
             html +=
               '<div class="table-responsive"><table class="table table-bordered table-striped table-sm outage-summary-table">';
-            html += '<thead class="table-light"><tr><th>RFO</th>';
+            html += `<thead class="table-light"><tr><th>${
+              groupBy === "segment" ? "Segment" : "RFO"
+            }</th>`;
             cableSystems.forEach((cs) => {
               html += `<th class=\"cable-system-header\">${cs}</th>`;
             });
@@ -100,6 +116,15 @@
             html += "</nav>";
             container.innerHTML = html;
             // Re-attach event handlers for toolbar controls
+            const groupBySel = container.querySelector(
+              "#outage-summary-groupby"
+            );
+            if (groupBySel) {
+              groupBySel.addEventListener("change", function () {
+                outageSummaryGroupBy = this.value;
+                renderOutageSummaryTable(1, pageSize, search, this.value);
+              });
+            }
             const pageSizeSel = container.querySelector(
               "#outage-summary-page-size"
             );
@@ -108,7 +133,12 @@
                 outageSummaryPage = 1;
                 outageSummaryPageSize = parseInt(this.value);
                 outageSummarySearch = search;
-                renderOutageSummaryTable(1, parseInt(this.value), search);
+                renderOutageSummaryTable(
+                  1,
+                  parseInt(this.value),
+                  search,
+                  groupBy
+                );
               });
             }
             const searchBtn = container.querySelector(
@@ -122,7 +152,7 @@
                 outageSummaryPage = 1;
                 outageSummaryPageSize = pageSize;
                 outageSummarySearch = val;
-                renderOutageSummaryTable(1, pageSize, val);
+                renderOutageSummaryTable(1, pageSize, val, groupBy);
               });
             }
             const resetBtn = container.querySelector(
@@ -133,7 +163,7 @@
                 outageSummaryPage = 1;
                 outageSummaryPageSize = pageSize;
                 outageSummarySearch = "";
-                renderOutageSummaryTable(1, pageSize, "");
+                renderOutageSummaryTable(1, pageSize, "", groupBy);
               });
             }
             const pageJumpForm = container.querySelector(
@@ -147,14 +177,23 @@
             }
             return;
           }
-          // Toolbar (search, page size)
+          // Toolbar (search, group by, page size)
           let html = `<div class="d-flex mb-2 gap-2 align-items-center justify-content-between" id="outage-summary-toolbar">
           <div class="d-flex gap-2 align-items-center">
-            <input type="text" id="outage-summary-search" class="form-control form-control-sm" style="max-width: 180px" placeholder="Search RFO..." value="${
+            <input type="text" id="outage-summary-search" class="form-control form-control-sm" style="max-width: 180px" placeholder="Search..." value="${
               search || ""
             }" />
             <button type="button" id="outage-summary-search-btn" class="btn btn-outline-secondary btn-sm ms-1" title="Search"><i class="bi bi-search"></i></button>
             <button type="button" id="outage-summary-reset-btn" class="btn btn-outline-secondary btn-sm ms-1" title="Reset"><i class="bi bi-arrow-clockwise"></i></button>
+            <label for="outage-summary-groupby" class="mb-0 small ms-2">Group by:</label>
+            <select id="outage-summary-groupby" class="form-select form-select-sm ms-1" style="width: auto; min-width: 110px; display: inline-block">
+              <option value="rfo"${
+                groupBy === "rfo" ? " selected" : ""
+              }>RFO</option>
+              <option value="segment"${
+                groupBy === "segment" ? " selected" : ""
+              }>Segment</option>
+            </select>
           </div>
           <div class="d-flex align-items-center ms-auto" style="gap: 0.5rem">
             <label for="outage-summary-page-size" class="mb-0 small">Items per page:</label>
@@ -167,20 +206,33 @@
         </div>`;
           html +=
             '<div class="table-responsive"><table class="table table-bordered table-striped table-sm outage-summary-table">';
-          html += '<thead class="table-light"><tr><th>RFO</th>';
+          html += `<thead class="table-light"><tr><th>${
+            groupBy === "segment" ? "Segment" : "RFO"
+          }</th>`;
           cableSystems.forEach((cs) => {
             html += `<th class=\"cable-system-header\">${cs}</th>`;
           });
           html += "</tr></thead><tbody>";
-          pagedRFOs.forEach((rfo) => {
-            html += `<tr><td>${rfo}</td>`;
+          pagedRows.forEach((row) => {
+            html += `<tr><td>${row}</td>`;
             cableSystems.forEach((cs) => {
-              const val = counts[rfo] && counts[rfo][cs] ? counts[rfo][cs] : 0;
+              const val = counts[row] && counts[row][cs] ? counts[row][cs] : 0;
               html += `<td class="text-center">${val}</td>`;
             });
             html += "</tr>";
           });
-          html += "</tbody></table></div>";
+          html += "</tbody>";
+          // Add totals row
+          html += "<tfoot><tr><th>Total</th>";
+          cableSystems.forEach((cs) => {
+            let colTotal = 0;
+            pagedRows.forEach((row) => {
+              colTotal += counts[row] && counts[row][cs] ? counts[row][cs] : 0;
+            });
+            html += `<th class=\"text-center\">${colTotal}</th>`;
+          });
+          html += "</tr></tfoot>";
+          html += "</table></div>";
           // Pagination controls (identical to Ticket List, with arrows and ellipsis)
           html +=
             '<nav class="d-flex align-items-center justify-content-between">';
@@ -232,8 +284,8 @@
           html += "</ul>";
           html += "</div>";
           html += `<span class="text-secondary small ms-auto" id="outage-summary-range">Showing ${
-            totalRFOs === 0 ? 0 : startIdx + 1
-          }-${endIdx} of ${totalRFOs} items</span>`;
+            totalRows === 0 ? 0 : startIdx + 1
+          }-${endIdx} of ${totalRows} items</span>`;
           html += "</nav>";
           container.innerHTML = html;
           // Pagination click handlers
@@ -253,10 +305,18 @@
                 outageSummaryPage = newPage;
                 outageSummaryPageSize = pageSize;
                 outageSummarySearch = search;
-                renderOutageSummaryTable(newPage, pageSize, search);
+                renderOutageSummaryTable(newPage, pageSize, search, groupBy);
               }
             });
           });
+          // Group by change
+          const groupBySel = container.querySelector("#outage-summary-groupby");
+          if (groupBySel) {
+            groupBySel.addEventListener("change", function () {
+              outageSummaryGroupBy = this.value;
+              renderOutageSummaryTable(1, pageSize, search, this.value);
+            });
+          }
           // Page size change
           const pageSizeSel = container.querySelector(
             "#outage-summary-page-size"
@@ -266,7 +326,12 @@
               outageSummaryPage = 1;
               outageSummaryPageSize = parseInt(this.value);
               outageSummarySearch = search;
-              renderOutageSummaryTable(1, parseInt(this.value), search);
+              renderOutageSummaryTable(
+                1,
+                parseInt(this.value),
+                search,
+                groupBy
+              );
             });
           }
           // Search button
@@ -281,7 +346,7 @@
               outageSummaryPage = 1;
               outageSummaryPageSize = pageSize;
               outageSummarySearch = val;
-              renderOutageSummaryTable(1, pageSize, val);
+              renderOutageSummaryTable(1, pageSize, val, groupBy);
             });
           }
           // Reset button
@@ -291,7 +356,7 @@
               outageSummaryPage = 1;
               outageSummaryPageSize = pageSize;
               outageSummarySearch = "";
-              renderOutageSummaryTable(1, pageSize, "");
+              renderOutageSummaryTable(1, pageSize, "", groupBy);
             });
           }
           // Page jump form
@@ -308,31 +373,39 @@
                 outageSummaryPage = val;
                 outageSummaryPageSize = pageSize;
                 outageSummarySearch = search;
-                renderOutageSummaryTable(val, pageSize, search);
+                renderOutageSummaryTable(val, pageSize, search, groupBy);
               }
             });
           }
         })
-        .getOutageSummaryTable();
+        .withFailureHandler(function (err) {
+          if (overlay) overlay.classList.add("d-none");
+          container.innerHTML = `<div class='alert alert-danger'>Failed to load outage summary.</div>`;
+        })
+        .getOutageSummaryTable(groupBy);
     }
-    // State for search, page, pageSize
+    // State for search, page, pageSize, and groupBy
     let outageSummaryPage = 1;
     let outageSummaryPageSize = 5;
     let outageSummarySearch = "";
-    function renderWithState(page, pageSize, search) {
+    let outageSummaryGroupBy = "rfo";
+
+    function renderWithState(page, pageSize, search, groupBy) {
       outageSummaryPage = page;
       outageSummaryPageSize = pageSize;
       outageSummarySearch = search;
-      renderOutageSummaryTable(page, pageSize, search);
+      outageSummaryGroupBy = groupBy || outageSummaryGroupBy;
+      renderOutageSummaryTable(page, pageSize, search, outageSummaryGroupBy);
     }
     document.addEventListener("DOMContentLoaded", function () {
-      renderWithState(1, 5, "");
+      renderWithState(1, 5, "", "rfo");
     });
     window.refreshOutageSummaryTable = function () {
       renderWithState(
         outageSummaryPage,
         outageSummaryPageSize,
-        outageSummarySearch
+        outageSummarySearch,
+        outageSummaryGroupBy
       );
     };
     // No patching of window.refreshAllData here; instead, rely on universal refresh

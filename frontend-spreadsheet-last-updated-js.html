@@ -7,7 +7,7 @@
       google.script.run
         .withSuccessHandler(function (isoString) {
           if (isoString) {
-            // Format to a readable string (e.g., May 22, 2025, 14:30)
+            // Format to a readable string (e.g., June 02, 2025, 14:30)
             var d = new Date(isoString);
             var options = {
               year: "numeric",

@@ -442,6 +442,57 @@
                 </div>
               </div>
             </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-body">
+                <h5 class="card-title">
+                  <i class="bi bi-download me-2"></i>Exporting Major Incidents
+                  Data
+                </h5>
+                <p>
+                  You can export the Major Incidents table in
+                  <strong>CSV</strong> or <strong>PDF</strong> format for
+                  reporting or further analysis. The export feature supports the
+                  following options:
+                </p>
+                <ul>
+                  <li>
+                    <strong>Include Headers</strong> - Include column headers in
+                    the export
+                  </li>
+                  <li>
+                    <strong>Search Filter</strong> - Export only rows matching
+                    your search
+                  </li>
+                  <li>
+                    <strong>Custom Title & Filename</strong> - Set a custom
+                    report title and filename
+                  </li>
+                  <li>
+                    <strong>Include Export Date</strong> - Add the export date
+                    to your report
+                  </li>
+                </ul>
+                <h6 class="mt-3">How to Export:</h6>
+                <ol>
+                  <li>
+                    Click the <strong>Export</strong> button in the Major
+                    Incidents panel.
+                  </li>
+                  <li>Choose your desired export format (CSV or PDF).</li>
+                  <li>
+                    Select which options to include (headers, search filter,
+                    etc.).
+                  </li>
+                  <li>Click <strong>Export</strong> to download your file.</li>
+                </ol>
+                <div class="alert alert-info mt-2">
+                  <i class="bi bi-info-circle me-2"></i>
+                  <strong>Note:</strong> Exported files are generated instantly
+                  in your browser and do not require any additional permissions.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -673,6 +724,69 @@
                 </div>
               </div>
             </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-body">
+                <h5 class="card-title">
+                  <i class="bi bi-download me-2"></i>Exporting Network
+                  Availability Data
+                </h5>
+                <p>
+                  You can export the Network Availability table in
+                  <strong>CSV</strong> or <strong>PDF</strong> format for
+                  reporting or further analysis. The export feature supports the
+                  following options:
+                </p>
+                <ul>
+                  <li>
+                    <strong>Cable System & Segment Filters</strong> - Export
+                    data for all or selected cable systems and segments
+                  </li>
+                  <li>
+                    <strong>Year Range</strong> - Choose which years to include
+                    in the export
+                  </li>
+                  <li>
+                    <strong>Month Headers</strong> - Include or exclude month
+                    columns
+                  </li>
+                  <li>
+                    <strong>Color Coding</strong> - Enable color highlights in
+                    PDF exports
+                  </li>
+                  <li>
+                    <strong>Yearly Averages</strong> - Add average availability
+                    per year
+                  </li>
+                  <li>
+                    <strong>Custom Title & Filename</strong> - Set a custom
+                    report title and filename
+                  </li>
+                  <li>
+                    <strong>Include Export Date</strong> - Add the export date
+                    to your report
+                  </li>
+                </ul>
+                <h6 class="mt-3">How to Export:</h6>
+                <ol>
+                  <li>
+                    Click the <strong>Export</strong> button in the Network
+                    Availability panel.
+                  </li>
+                  <li>Choose your desired export format (CSV or PDF).</li>
+                  <li>
+                    Select filters and options as needed (Cable System, Segment,
+                    Years, etc.).
+                  </li>
+                  <li>Click <strong>Export</strong> to download your file.</li>
+                </ol>
+                <div class="alert alert-info mt-2">
+                  <i class="bi bi-info-circle me-2"></i>
+                  <strong>Note:</strong> Exported files are generated instantly
+                  in your browser and do not require any additional permissions.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -705,9 +819,13 @@
               </h5>
               <p>
                 The Outage Summary provides a cross-tabulated view of outage
-                incidents, grouping them by Reason For Outage (RFO) and Cable
-                System. This helps identify which causes of outage are most
-                common for each cable system.
+                incidents, grouping them by
+                <strong>Reason For Outage (RFO)</strong> or
+                <strong>Segment</strong> and Cable System. You can now switch
+                between grouping by RFO or by Segment using the
+                <strong>Group by</strong> dropdown above the table. This helps
+                identify which causes or segments are most common for each cable
+                system.
               </p>
             </div>
 
@@ -725,7 +843,7 @@
                     <ul>
                       <li>
                         <strong>Rows</strong> - Each row represents a specific
-                        RFO type
+                        RFO type or Segment, depending on the selected grouping
                       </li>
                       <li>
                         <strong>Columns</strong> - Each column represents a
@@ -733,19 +851,21 @@
                       </li>
                       <li>
                         <strong>Cell Values</strong> - The count of incidents
-                        for that RFO/Cable System combination
+                        for that RFO/Segment and Cable System combination
                       </li>
                     </ul>
                     <p>This cross-tabulation makes it easy to identify:</p>
                     <ul>
-                      <li>The most common causes of outages overall</li>
                       <li>
-                        Which cable systems are most prone to specific types of
-                        failures
+                        The most common causes or segments of outages overall
                       </li>
                       <li>
-                        Distribution patterns of outage causes across your
-                        network
+                        Which cable systems are most prone to specific types of
+                        failures or affected segments
+                      </li>
+                      <li>
+                        Distribution patterns of outage causes or segments
+                        across your network
                       </li>
                     </ul>
                     <div class="alert alert-info mt-2">
@@ -760,25 +880,30 @@
                 <div class="card border-0 shadow-sm h-100">
                   <div class="card-body">
                     <h5 class="card-title">
-                      <i class="bi bi-search me-2"></i>Filtering and Navigation
+                      <i class="bi bi-search me-2"></i>Filtering, Grouping, and
+                      Navigation
                     </h5>
                     <p>You can focus your analysis with these controls:</p>
                     <ul>
                       <li>
-                        <strong>Search</strong> - Filter RFOs by keyword (e.g.,
-                        "fiber", "power")
+                        <strong>Search</strong> - Filter RFOs or Segments by
+                        keyword (e.g., "fiber", "power")
                       </li>
                       <li>
-                        <strong>Reset</strong> - Clear search and show all RFO
+                        <strong>Group by</strong> - Switch between grouping by
+                        RFO or by Segment using the dropdown
+                      </li>
+                      <li>
+                        <strong>Reset</strong> - Clear search and show all
                         categories
                       </li>
                       <li>
-                        <strong>Items per Page</strong> - Adjust how many RFO
+                        <strong>Items per Page</strong> - Adjust how many
                         categories are shown at once
                       </li>
                       <li>
                         <strong>Page Navigation</strong> - Browse through
-                        multiple pages of RFOs
+                        multiple pages
                       </li>
                       <li>
                         <strong>Page Jump</strong> - Go directly to a specific
@@ -792,6 +917,81 @@
                       categories of outages.
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-body">
+                <h5 class="card-title">
+                  <i class="bi bi-download me-2"></i>Exporting Outage Summary
+                  Data
+                </h5>
+                <p>
+                  You can export the Outage Summary table in
+                  <strong>CSV</strong> or <strong>PDF</strong> format for
+                  reporting or further analysis. The export feature supports the
+                  following options:
+                </p>
+                <ul>
+                  <li>
+                    <strong>Include RFO</strong> - Include the RFO column in the
+                    export
+                  </li>
+                  <li>
+                    <strong>Include Segment</strong> - Include the Segment
+                    column in the export
+                  </li>
+                  <li>
+                    <strong>Include Cable Systems</strong> - Include all cable
+                    system columns
+                  </li>
+                  <li>
+                    <strong>Include Row Totals</strong> - Add a total column for
+                    each row
+                  </li>
+                  <li>
+                    <strong>Group by</strong> - Choose to export by RFO, by
+                    Segment, or both (dual-table export)
+                  </li>
+                  <li>
+                    <strong>Search Filter</strong> - Export only rows matching
+                    your search
+                  </li>
+                  <li>
+                    <strong>Custom Title & Filename</strong> - Set a custom
+                    report title and filename
+                  </li>
+                  <li>
+                    <strong>Include Export Date</strong> - Add the export date
+                    to your report
+                  </li>
+                </ul>
+                <h6 class="mt-3">How to Export:</h6>
+                <ol>
+                  <li>
+                    Click the <strong>Export</strong> button in the Outage
+                    Summary panel.
+                  </li>
+                  <li>Choose your desired export format (CSV or PDF).</li>
+                  <li>
+                    Select which columns and options to include (RFO, Segment,
+                    Cable Systems, Totals, etc.).
+                  </li>
+                  <li>
+                    Optionally, filter the data using the search box or change
+                    the grouping.
+                  </li>
+                  <li>Click <strong>Export</strong> to download your file.</li>
+                  <li>
+                    If you select both RFO and Segment, a dual-table export will
+                    be generated (one for each grouping).
+                  </li>
+                </ol>
+                <div class="alert alert-info mt-2">
+                  <i class="bi bi-info-circle me-2"></i>
+                  <strong>Note:</strong> Exported files are generated instantly
+                  in your browser and do not require any additional permissions.
                 </div>
               </div>
             </div>
@@ -1473,7 +1673,7 @@
 
     <div class="text-center mt-4">
       <span class="text-muted small"
-        >Last updated: May 22, 2025 | Version: scstov-dash_v1.a</span
+        >Last updated: June 02, 2025 | Version: scstov-dash_v2.fl</span
       >
     </div>
   </div>

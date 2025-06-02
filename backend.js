@@ -286,38 +286,48 @@ function getTicketDetailsById(ticketId, page, pageSize, search) {
 }
 
 /**
- * Returns summary table of RFO counts per Cable System
- * @returns {Object} { cableSystems: string[], rfoTypes: string[], counts: Object, error: string|null, sheetIdError: boolean }
+ * Returns summary table of RFO or Segment counts per Cable System
+ * @param {string} groupBy - 'rfo' (default) or 'segment'
+ * @returns {Object} { cableSystems: string[], rowTypes: string[], counts: Object, error: string|null, sheetIdError: boolean }
  */
-function getOutageSummaryTable() {
+function getOutageSummaryTable(groupBy) {
   try {
     // Use the configured sheet name from PropertyService
     const data = getSheetVal(getSheetName());
-    if (!data || data.length === 0) return { cableSystems: [], rfoTypes: [], counts: {}, error: 'No data found.', sheetIdError: false };
+    if (!data || data.length === 0) return { cableSystems: [], rowTypes: [], counts: {}, error: 'No data found.', sheetIdError: false };
     const columns = data[0];
     const cableSystemIdx = columns.findIndex(c => String(c).toLowerCase() === 'cable system');
     const rfoIdx = columns.findIndex(c => String(c).toLowerCase() === 'rfo');
-    if (cableSystemIdx === -1 || rfoIdx === -1) return { cableSystems: [], rfoTypes: [], counts: {}, error: 'Missing columns.', sheetIdError: false };
+    const segmentIdx = columns.findIndex(c => String(c).toLowerCase().includes('segment'));
+    if (cableSystemIdx === -1 || rfoIdx === -1 || segmentIdx === -1) return { cableSystems: [], rowTypes: [], counts: {}, error: 'Missing columns.', sheetIdError: false };
     const cableSystems = getDropdownOptions().cableSystem;
-    const rfoSet = new Set();
+    const rowSet = new Set();
     const counts = {};
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
       const cable = row[cableSystemIdx];
       const rfo = row[rfoIdx];
-      if (!cable || !rfo) continue;
-      rfoSet.add(rfo);
-      if (!counts[rfo]) counts[rfo] = {};
-      if (!counts[rfo][cable]) counts[rfo][cable] = 0;
-      counts[rfo][cable]++;
+      const segment = row[segmentIdx];
+      if (!cable) continue;
+      let key;
+      if (groupBy === 'segment') {
+        key = segment || '';
+      } else {
+        key = rfo || '';
+      }
+      if (!key) continue;
+      rowSet.add(key);
+      if (!counts[key]) counts[key] = {};
+      if (!counts[key][cable]) counts[key][cable] = 0;
+      counts[key][cable]++;
     }
-    const rfoTypes = Array.from(rfoSet);
-    return { cableSystems, rfoTypes, counts, error: null, sheetIdError: false };
+    const rowTypes = Array.from(rowSet);
+    return { cableSystems, rowTypes, counts, error: null, sheetIdError: false };
   } catch (err) {
     if (err && String(err).includes('Sheet ID not set')) {
-      return { cableSystems: [], rfoTypes: [], counts: {}, error: err.message, sheetIdError: true };
+      return { cableSystems: [], rowTypes: [], counts: {}, error: err.message, sheetIdError: true };
     }
-    return { cableSystems: [], rfoTypes: [], counts: {}, error: err.message || 'Unknown error.', sheetIdError: false };
+    return { cableSystems: [], rowTypes: [], counts: {}, error: err.message || 'Unknown error.', sheetIdError: false };
   }
 }
 
@@ -940,104 +950,106 @@ function exportOutageSummary(params) {
       includeTotals = false,
       searchFilter = '',
       title = 'Outage Summary Report',
-      includeDate = true
+      includeDate = true,
+      groupBy = 'rfo',
+      includeSegment = false,
     } = params;
 
     // Get outage summary data
-    const summaryData = getOutageSummaryTable();
+    const summaryData = getOutageSummaryTable(groupBy);
     if (summaryData.error) {
       return { success: false, error: summaryData.error };
     }
 
-    let { cableSystems, rfoTypes, counts } = summaryData;
-    
-    // Apply search filter
+    let { cableSystems, rowTypes, counts } = summaryData;
+      // Apply search filter
     if (searchFilter && searchFilter.trim() !== '') {
-      rfoTypes = rfoTypes.filter(rfo => 
-        rfo.toLowerCase().includes(searchFilter.trim().toLowerCase())
+      rowTypes = rowTypes.filter(row => 
+        row.toLowerCase().includes(searchFilter.trim().toLowerCase())
       );
     }
 
+    // If both RFO and Segment are selected, generate two tables (RFO and Segment)
+    if (includeRFO && includeSegment) {
+      // RFO Table
+      let rfoTable, segmentTable;
+      // RFO table: groupBy = 'rfo', includeRFO: true, includeSegment: false
+      const rfoData = getOutageSummaryTable('rfo');
+      if (format === 'csv') {
+        rfoTable = exportOutageSummaryCSV(rfoData.cableSystems, rfoData.rowTypes, rfoData.counts, {
+          filename,
+          includeRFO: true,
+          includeSegment: false,
+          includeCableSystems,
+          includeTotals,
+          title: title + ' (RFO)',
+          includeDate,
+          groupBy: 'rfo'
+        }).data;
+      } else {
+        rfoTable = exportOutageSummaryPDF(rfoData.cableSystems, rfoData.rowTypes, rfoData.counts, {
+          filename,
+          includeRFO: true,
+          includeSegment: false,
+          includeCableSystems,
+          includeTotals,
+          title: title + ' (RFO)',
+          includeDate,
+          groupBy: 'rfo'
+        }).data;
+      }
+      // Segment table: groupBy = 'segment', includeRFO: false, includeSegment: true
+      const segmentData = getOutageSummaryTable('segment');
+      if (format === 'csv') {
+        segmentTable = exportOutageSummaryCSV(segmentData.cableSystems, segmentData.rowTypes, segmentData.counts, {
+          filename,
+          includeRFO: false,
+          includeSegment: true,
+          includeCableSystems,
+          includeTotals,
+          title: title + ' (Segment)',
+          includeDate,
+          groupBy: 'segment'
+        }).data;        // Combine with a separator
+        return {
+          success: true,
+          data: rfoTable + '\n\n' + segmentTable,
+          filename: filename + '.csv',
+          mimeType: 'text/csv',
+        };
+      } else {
+        // For PDF dual-table export, create a combined HTML document
+        return exportDualTablePDF(rfoData, segmentData, {
+          filename,
+          includeCableSystems,
+          includeTotals,
+          title,
+          includeDate
+        });
+      }
+    }
+    // If only RFO or only Segment is selected, fall back to single table export
     if (format === 'csv') {
-      return exportOutageSummaryCSV(cableSystems, rfoTypes, counts, {
+      return exportOutageSummaryCSV(cableSystems, rowTypes, counts, {
         filename,
         includeRFO,
         includeCableSystems,
         includeTotals,
+        includeSegment,
         title,
-        includeDate
+        includeDate,
+        groupBy // Pass groupBy for segment logic
       });
     } else if (format === 'pdf') {
-      return exportOutageSummaryPDF(cableSystems, rfoTypes, counts, {
+      return exportOutageSummaryPDF(cableSystems, rowTypes, counts, {
         filename,
         includeRFO,
         includeCableSystems,
         includeTotals,
+        includeSegment,
         title,
-        includeDate
-      });
-    } else {
-      return { success: false, error: 'Invalid export format specified.' };
-    }
-  } catch (error) {
-    return { success: false, error: error.message || 'Export failed.' };
-  }
-}
-
-/**
- * Exports Network Availability data in specified format
- * @param {Object} params - Export parameters
- * @returns {Object} { success: boolean, data: string, filename: string, mimeType: string, error: string }
- */
-function exportNetworkAvailability(params) {
-  try {
-    const {
-      format,
-      filename = 'network-availability',
-      cableSystem = '',
-      segment = '',
-      yearStart = '',
-      yearEnd = '',
-      includeMonthHeaders = true,
-      includeColorCoding = false,
-      includeAverages = false,
-      title = 'Network Availability Report',
-      includeDate = true
-    } = params;
-
-    // Get network availability data
-    const networkData = getNetworkAvailabilityData();
-    if (networkData.error) {
-      return { success: false, error: networkData.error };
-    }
-
-    let { cableSystems, segments, years, data } = networkData;
-    
-    // Apply filters
-    if (cableSystem) cableSystems = [cableSystem];
-    if (segment) segments = [segment];
-    if (yearStart || yearEnd) {
-      const startYear = yearStart ? parseInt(yearStart) : Math.min(...years);
-      const endYear = yearEnd ? parseInt(yearEnd) : Math.max(...years);
-      years = years.filter(year => year >= startYear && year <= endYear);
-    }
-
-    if (format === 'csv') {
-      return exportNetworkAvailabilityCSV(cableSystems, segments, years, data, {
-        filename,
-        includeMonthHeaders,
-        includeAverages,
-        title,
-        includeDate
-      });
-    } else if (format === 'pdf') {
-      return exportNetworkAvailabilityPDF(cableSystems, segments, years, data, {
-        filename,
-        includeMonthHeaders,
-        includeColorCoding,
-        includeAverages,
-        title,
-        includeDate
+        includeDate,
+        groupBy // Pass groupBy for segment logic
       });
     } else {
       return { success: false, error: 'Invalid export format specified.' };
@@ -1050,8 +1062,8 @@ function exportNetworkAvailability(params) {
 /**
  * Helper function to export Outage Summary as CSV
  */
-function exportOutageSummaryCSV(cableSystems, rfoTypes, counts, options) {
-  const { filename, includeRFO, includeCableSystems, includeTotals, title, includeDate } = options;
+function exportOutageSummaryCSV(cableSystems, rowTypes, counts, options) {
+  const { filename, includeRFO, includeCableSystems, includeTotals, includeSegment, title, includeDate } = options;
   
   let csvContent = '';
   
@@ -1064,6 +1076,7 @@ function exportOutageSummaryCSV(cableSystems, rfoTypes, counts, options) {
   // Build headers for the table
   let headers = [];
   if (includeRFO) headers.push('RFO');
+  if (includeSegment) headers.push('Segment');
   if (includeCableSystems) {
     cableSystems.forEach(cs => headers.push(cs));
   }
@@ -1073,19 +1086,39 @@ function exportOutageSummaryCSV(cableSystems, rfoTypes, counts, options) {
   csvContent += headers.map(h => `"${h}"`).join(',') + '\n';
   
   // Build data rows in table format
-  rfoTypes.forEach(rfo => {
+  rowTypes.forEach(rowType => {
     let row = [];
-    if (includeRFO) row.push(`"${rfo}"`);
-    
+    if (includeRFO) row.push(`"${rowType}"`);
+    if (includeSegment) {
+      // Find the segment for this rowType (if groupBy is rfo, find the first segment for this RFO)
+      let segmentVal = '';
+      // Try to find the segment from the original data
+      // This is a best-effort: if groupBy is segment, rowType is the segment
+      if (options.groupBy === 'segment') {
+        segmentVal = rowType;
+      } else {
+        // Find the first row in the data with this RFO
+        const data = getSheetVal(getSheetName());
+        const columns = data[0];
+        const rfoIdx = columns.findIndex(c => String(c).toLowerCase() === 'rfo');
+        const segmentIdx = columns.findIndex(c => String(c).toLowerCase().includes('segment'));
+        for (let i = 1; i < data.length; i++) {
+          if (data[i][rfoIdx] === rowType) {
+            segmentVal = data[i][segmentIdx];
+            break;
+          }
+        }
+      }
+      row.push(`"${segmentVal || ''}"`);
+    }
     let rowTotal = 0;
     if (includeCableSystems) {
       cableSystems.forEach(cs => {
-        const value = (counts[rfo] && counts[rfo][cs]) ? counts[rfo][cs] : 0;
+        const value = (counts[rowType] && counts[rowType][cs]) ? counts[rowType][cs] : 0;
         row.push(value);
         rowTotal += value;
       });
     }
-    
     if (includeTotals) row.push(rowTotal);
     csvContent += row.join(',') + '\n';
   });
@@ -1190,8 +1223,8 @@ function exportNetworkAvailabilityCSV(cableSystems, segments, years, data, optio
 /**
  * Helper function to export Outage Summary as PDF (simplified HTML-to-PDF approach)
  */
-function exportOutageSummaryPDF(cableSystems, rfoTypes, counts, options) {
-  const { filename, includeRFO, includeCableSystems, includeTotals, title, includeDate } = options;
+function exportOutageSummaryPDF(cableSystems, rowTypes, counts, options) {
+  const { filename, includeRFO, includeCableSystems, includeTotals, includeSegment, title, includeDate, groupBy } = options;
   
   // Create HTML content for PDF
   let htmlContent = `
@@ -1219,6 +1252,7 @@ function exportOutageSummaryPDF(cableSystems, rfoTypes, counts, options) {
   
   // Build headers
   if (includeRFO) htmlContent += '<th>RFO</th>';
+  if (includeSegment) htmlContent += '<th>Segment</th>';
   if (includeCableSystems) {
     cableSystems.forEach(cs => htmlContent += `<th>${cs}</th>`);
   }
@@ -1227,19 +1261,35 @@ function exportOutageSummaryPDF(cableSystems, rfoTypes, counts, options) {
   htmlContent += '</tr></thead><tbody>';
   
   // Build data rows
-  rfoTypes.forEach(rfo => {
+  rowTypes.forEach(rowType => {
     htmlContent += '<tr>';
-    if (includeRFO) htmlContent += `<td>${rfo}</td>`;
-    
+    if (includeRFO) htmlContent += `<td>${rowType}</td>`;
+    if (includeSegment) {
+      let segmentVal = '';
+      if (groupBy === 'segment') {
+        segmentVal = rowType;
+      } else {
+        const data = getSheetVal(getSheetName());
+        const columns = data[0];
+        const rfoIdx = columns.findIndex(c => String(c).toLowerCase() === 'rfo');
+        const segmentIdx = columns.findIndex(c => String(c).toLowerCase().includes('segment'));
+        for (let i = 1; i < data.length; i++) {
+          if (data[i][rfoIdx] === rowType) {
+            segmentVal = data[i][segmentIdx];
+            break;
+          }
+        }
+      }
+      htmlContent += `<td>${segmentVal || ''}</td>`;
+    }
     let rowTotal = 0;
     if (includeCableSystems) {
       cableSystems.forEach(cs => {
-        const value = (counts[rfo] && counts[rfo][cs]) ? counts[rfo][cs] : 0;
+        const value = (counts[rowType] && counts[rowType][cs]) ? counts[rowType][cs] : 0;
         htmlContent += `<td>${value}</td>`;
         rowTotal += value;
       });
     }
-    
     if (includeTotals) htmlContent += `<td>${rowTotal}</td>`;
     htmlContent += '</tr>';
   });
@@ -1380,109 +1430,25 @@ function exportNetworkAvailabilityPDF(cableSystems, segments, years, data, optio
 }
 
 /**
- * Exports Major Incidents data in specified format
- * @param {Object} params - Export parameters
- * @returns {Object} { success: boolean, data: string, filename: string, mimeType: string, error: string }
+ * Helper function to export dual table (RFO + Segment) as PDF
  */
-function exportMajorIncidents(params) {
-  try {
-    const {
-      format,
-      filename = 'major-incidents',
-      includeHeaders = true,
-      searchFilter = '',
-      title = 'Major Incidents Report',
-      includeDate = true
-    } = params;
-
-    // Get major incidents data
-    let result = getMajorIncidentsTableData(1, 1000, searchFilter); // Get all data with large page size
-    if (result.error) {
-      return { success: false, error: result.error };
-    }
-
-    let { columns, rows } = result;
-    
-    if (format === 'csv') {
-      return exportMajorIncidentsCSV(columns, rows, {
-        filename,
-        includeHeaders,
-        title,
-        includeDate
-      });
-    } else if (format === 'pdf') {
-      return exportMajorIncidentsPDF(columns, rows, {
-        filename,
-        includeHeaders,
-        title,
-        includeDate
-      });
-    } else {
-      return { success: false, error: 'Invalid export format specified.' };
-    }
-  } catch (error) {
-    return { success: false, error: error.message || 'Export failed.' };
-  }
-}
-
-/**
- * Helper function to export Major Incidents as CSV
- */
-function exportMajorIncidentsCSV(columns, rows, options) {
-  const { filename, includeHeaders, title, includeDate } = options;
+function exportDualTablePDF(rfoData, segmentData, options) {
+  const { filename, includeCableSystems, includeTotals, title, includeDate } = options;
   
-  let csvContent = '';
-  
-  // Add metadata
-  if (includeDate) {
-    csvContent += `"Generated on","${new Date().toLocaleString()}"\n`;
-  }
-  csvContent += `"Report","${title}"\n\n`;
-  
-  // Add headers
-  if (includeHeaders) {
-    csvContent += columns.map(h => `"${h}"`).join(',') + '\n';
-  }
-  
-  // Add data rows
-  rows.forEach(row => {
-    csvContent += row.map(cell => {
-      // Escape quotes and wrap in quotes
-      const cellStr = String(cell || '');
-      return `"${cellStr.replace(/"/g, '""')}"`;
-    }).join(',') + '\n';
-  });
-  
-  // Convert to base64
-  const blob = Utilities.newBlob(csvContent, 'text/csv', `${filename}.csv`);
-  const base64Data = Utilities.base64Encode(blob.getBytes());
-  
-  return {
-    success: true,
-    data: base64Data,
-    filename: `${filename}.csv`,
-    mimeType: 'text/csv'
-  };
-}
-
-/**
- * Helper function to export Major Incidents as PDF
- */
-function exportMajorIncidentsPDF(columns, rows, options) {
-  const { filename, includeHeaders, title, includeDate } = options;
-  
-  // Create HTML content for PDF
+  // Create HTML content for PDF with both tables
   let htmlContent = `
     <html>
       <head>
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; }
-          h1 { color: #333; text-align: center; }
+          h1 { color: #333; text-align: center; margin-bottom: 10px; }
+          h2 { color: #555; margin-top: 30px; margin-bottom: 15px; }
           .metadata { text-align: center; margin-bottom: 20px; color: #666; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; page-break-inside: avoid; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
           th { background-color: #f2f2f2; font-weight: bold; }
           tr:nth-child(even) { background-color: #f9f9f9; }
+          .table-separator { margin: 30px 0; }
         </style>
       </head>
       <body>
@@ -1493,26 +1459,59 @@ function exportMajorIncidentsPDF(columns, rows, options) {
     htmlContent += `<div class="metadata">Generated on: ${new Date().toLocaleString()}</div>`;
   }
   
-  htmlContent += '<table>';
-  
-  // Add headers
-  if (includeHeaders && columns.length > 0) {
-    htmlContent += '<thead><tr>';
-    columns.forEach(header => {
-      htmlContent += `<th>${header}</th>`;
-    });
-    htmlContent += '</tr></thead>';
+  // RFO Table
+  htmlContent += '<h2>RFO Summary</h2>';
+  htmlContent += '<table><thead><tr>';
+  htmlContent += '<th>RFO</th>';
+  if (includeCableSystems) {
+    rfoData.cableSystems.forEach(cs => htmlContent += `<th>${cs}</th>`);
   }
+  if (includeTotals) htmlContent += '<th>Total</th>';
+  htmlContent += '</tr></thead><tbody>';
   
-  // Add data rows
-  htmlContent += '<tbody>';
-  rows.forEach(row => {
+  rfoData.rowTypes.forEach(rowType => {
     htmlContent += '<tr>';
-    row.forEach(cell => {
-      htmlContent += `<td>${cell || ''}</td>`;
-    });
+    htmlContent += `<td>${rowType}</td>`;
+    let rowTotal = 0;
+    if (includeCableSystems) {
+      rfoData.cableSystems.forEach(cs => {
+        const value = (rfoData.counts[rowType] && rfoData.counts[rowType][cs]) ? rfoData.counts[rowType][cs] : 0;
+        htmlContent += `<td>${value}</td>`;
+        rowTotal += value;
+      });
+    }
+    if (includeTotals) htmlContent += `<td>${rowTotal}</td>`;
     htmlContent += '</tr>';
   });
+  
+  htmlContent += '</tbody></table>';
+  
+  // Segment Table
+  htmlContent += '<div class="table-separator"></div>';
+  htmlContent += '<h2>Segment Summary</h2>';
+  htmlContent += '<table><thead><tr>';
+  htmlContent += '<th>Segment</th>';
+  if (includeCableSystems) {
+    segmentData.cableSystems.forEach(cs => htmlContent += `<th>${cs}</th>`);
+  }
+  if (includeTotals) htmlContent += '<th>Total</th>';
+  htmlContent += '</tr></thead><tbody>';
+  
+  segmentData.rowTypes.forEach(rowType => {
+    htmlContent += '<tr>';
+    htmlContent += `<td>${rowType}</td>`;
+    let rowTotal = 0;
+    if (includeCableSystems) {
+      segmentData.cableSystems.forEach(cs => {
+        const value = (segmentData.counts[rowType] && segmentData.counts[rowType][cs]) ? segmentData.counts[rowType][cs] : 0;
+        htmlContent += `<td>${value}</td>`;
+        rowTotal += value;
+      });
+    }
+    if (includeTotals) htmlContent += `<td>${rowTotal}</td>`;
+    htmlContent += '</tr>';
+  });
+  
   htmlContent += '</tbody></table></body></html>';
   
   // Convert HTML to PDF
@@ -1527,4 +1526,3 @@ function exportMajorIncidentsPDF(columns, rows, options) {
     mimeType: 'application/pdf'
   };
 }
-

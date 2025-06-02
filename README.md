@@ -230,7 +230,7 @@ The project follows a tiered, modular architecture for clarity and maintainabili
 
 See `LOGS.md` for a detailed development log and version history.
 
-- Current version: **scstov-dash_v1.a** (see sidebar and help section)
+- Current version: **scstov-dash_v2.fl** (see sidebar and help section)
 - Major updates include modularization, dark mode, accessibility, and full CRUD support
 
 ---

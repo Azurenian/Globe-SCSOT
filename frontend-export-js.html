@@ -38,7 +38,7 @@
 
           // Populate cable systems
           const csSelect = document.getElementById("networkExportCableSystem");
-          if (csSelect && data.cableSystems) {
+          if (csSelect && Array.isArray(data.cableSystems)) {
             data.cableSystems.forEach((cs) => {
               const option = document.createElement("option");
               option.value = cs;
@@ -49,7 +49,7 @@
 
           // Populate segments
           const segSelect = document.getElementById("networkExportSegment");
-          if (segSelect && data.segments) {
+          if (segSelect && Array.isArray(data.segments)) {
             data.segments.forEach((seg) => {
               const option = document.createElement("option");
               option.value = seg;
@@ -63,7 +63,7 @@
             "networkExportYearStart"
           );
           const yearEndSelect = document.getElementById("networkExportYearEnd");
-          if (yearStartSelect && yearEndSelect && data.years) {
+          if (yearStartSelect && yearEndSelect && Array.isArray(data.years)) {
             data.years.forEach((year) => {
               const startOption = document.createElement("option");
               startOption.value = year;
@@ -143,11 +143,17 @@
       const includeTotals = document.getElementById(
         "outageIncludeTotals"
       ).checked;
+      const includeSegment = document.getElementById(
+        "outageIncludeSegment"
+      ).checked; // NEW
       const searchFilter = document.getElementById("outageExportSearch").value;
       const title =
         document.getElementById("outageExportTitle").value ||
         "Outage Summary Report";
       const includeDate = document.getElementById("outageIncludeDate").checked;
+      const groupBy = document.getElementById("outageExportGroupBy")
+        ? document.getElementById("outageExportGroupBy").value
+        : "rfo";
 
       // Validation
       if (!format) {
@@ -166,9 +172,11 @@
         includeRFO,
         includeCableSystems,
         includeTotals,
+        includeSegment, // NEW
         searchFilter,
         title,
         includeDate,
+        groupBy,
       };
 
       google.script.run

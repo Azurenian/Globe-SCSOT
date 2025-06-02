@@ -3,7 +3,7 @@
   (function () {
     // State management
     let currentPage = 1;
-    let pageSize = 10;
+    let pageSize = 5; // Changed from 10 to 5 as default
     let searchQuery = "";
     let isLoading = false;
     let selectedRowIndices = new Set();
@@ -17,7 +17,25 @@
       attachEventListeners();
     });
 
+    function initializePageSizeSelect() {
+      const pageSizeSelect = document.getElementById(
+        "major-incidents-page-size"
+      );
+      if (pageSizeSelect) {
+        // Set options HTML with 5 as selected
+        pageSizeSelect.innerHTML = `
+          <option value="5" selected>5</option>
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+        `;
+        // Set initial value and attach event listener
+        pageSize = 5;
+      }
+    }
+
     function initializeMajorIncidentsTable() {
+      initializePageSizeSelect();
       fetchMajorIncidentsData(currentPage, pageSize, searchQuery);
     }
 
@@ -171,8 +189,11 @@
         return;
       }
 
-      let html =
-        '<div class="table-responsive"><table class="table table-bordered table-striped table-sm major-incidents-table"><thead class="table-light"><tr>';
+      // Create a horizontally scrollable container
+      let html = '<div class="table-responsive">';
+      html +=
+        '<table class="table table-bordered table-striped table-sm major-incidents-table">';
+      html += '<thead class="table-light"><tr>';
 
       // Add columns
       result.columns.forEach((col) => {
@@ -189,7 +210,7 @@
         html += "</tr>";
       });
 
-      html += "</tbody></table></div>";
+      html += "</tbody></table></div>"; // Close both table and responsive div
       container.innerHTML = html;
 
       // Attach row selection handlers

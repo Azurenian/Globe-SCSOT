@@ -6,7 +6,7 @@
 
 - Completed comprehensive code cleanup and organization
 - Implemented targeted styling approach for better CSS management
-- Added version number to sidebar (scstov-dash_v1.a)
+- Added version number to sidebar (scstov-dash_v2.fl)
 - Ensured dark mode compatibility across all components
 - Fixed striping pattern in network availability tables
 - Replaced all double chevron icons with single chevrons for consistency
